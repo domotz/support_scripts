@@ -224,7 +224,6 @@ $npcap_info=Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\Curren
 $npcap_version=$npcap_info.DisplayVersion
 Add-Content $reportFile "Npcap version=$npcap_version"
 
-
 $match_str="Cannot find MAC address for device with IP"
 if(Select-String -Path $DesktopPath\$customerLogDir\listener_logs\*.log.* -Patter $match_str){
     $npcapIssueReport="$DesktopPath\$customerLogDir\npcap_issue_maybe_detected.txt"
@@ -242,9 +241,9 @@ $domotzStatusObj=$domotzStatus | ConvertFrom-Json
 # $nmapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "version"
 # $npcapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "npcap"
 # $nmapLiblua=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-liblua"
-# $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-libssh2"
+# $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-libssh2
 # $libPcap=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "libpcap"
-# $ipv6Support=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "ipv6"
+# $ipv6Support$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "ipv6"
 
 # Add-Content $reportFile "[Nmap Details]"
 # Add-Content $reportFile "Nmap version=$nmapVersion"
@@ -252,7 +251,10 @@ $domotzStatusObj=$domotzStatus | ConvertFrom-Json
 # Add-Content $reportFile "NmapLibLua version=$nmapLiblua"
 # Add-Content $reportFile "NpmapLibSsh2 version=$nmapLibssh2"
 # Add-Content $reportFile "lib-pcap version=$libPcap"
-# Add-Content $reportFile "nmap ipv6Support=$ipv6Support"
+# Add-Content $reportFile "nmap ipv6Support=$libPcap"
+
+# break
+
 
 # Domotz Agent -- Test Firewall
 # Messages
@@ -316,9 +318,9 @@ foreach ($a in $domotzBox_hosts) {
 Write-Host " Done!"
 
 # Speedtest check
-if (Test-Path -Path $currentDir\fast_speed_test.js -PathType Leaf) {
+if (Test-Path -Path $agentConfFile -PathType Leaf) {
     Write-Host ""
-    Write-Host "Speedtest check --- this could take some time --- Please wait... (it is running don't worry :) )"
+    Write-Host "Speedtest check --- this could take some time --- Please wait..."
     $speedtestReportFile="$DesktopPath\$customerLogDir\fast_test.txt"
     &"$domotzNode" $currentDir\fast_speed_test.js | Out-File $speedtestReportFile
 }
