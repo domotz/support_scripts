@@ -5,17 +5,37 @@
 # - checks for Domotz Cloud connectivity (outgoing)
 # - perform a test with the selected Speedtest - if enabled -
 
+$agentInstDir_compl= Get-ItemProperty HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\domotz | Select-Object UninstallString
+$agentInstDir=$agentInstDir_compl.UninstallString.Trim('"') -replace "uninstall.exe", ""
+$agentDataDir="$Env:ALLUSERSPROFILE\domotz"
+
 # Domotz logs variables
 $date=Get-Date -Format "dd-MM-yyyy-HH-mm-ss"
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
-$agentDataDir="C:\ProgramData\domotz"
 $agentConfFile="$agentDataDir\domotz.json"
 $listernerLogDir="$agentDataDir\log"
-$daemonLogDir="C:\Program Files (x86)\domotz\bin\daemon"
+$daemonLogDir="$agentInstDir\bin\daemon"
 $domotzService = "Domotz Agent"
-$domotzNode="C:\Program Files (x86)\domotz\bin\domotz_node.exe"
+$domotzNode="$agentInstDir\bin\domotz_node.exe"
 $currentScriptPath=$MyInvocation.MyCommand.Path
 $currentDir=Split-Path $currentScriptPath -Parent
+
+# Motd
+Write-Host "
++------------------------------------------------+
+|  ___                             _             |
+| (  _'\                          ( )_           |
+| | | ) |   _     ___ ___     _   | ,_) ____     |
+| | | | ) /'_'\ /' _ ' _ '\ /'_'\ | |  (_  ,)    |
+| | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_     |
+| (____/''\___/'(_) (_) (_)'\___/''\__)(____)    |
+| ---------------------------------------------- |
+| The RMM tool for Networks and Connected Devices|
++------------------------------------------------+
+This is the Domotz Support Diagnostic application. 
+It will create a zip file on your Desktop which you will send to support@domotz.com"
+
+Read-Host -Prompt "Press any key to continue or CTRL+C to quit" 
 
 
 # Domotz Firewall hosts and ports variables
