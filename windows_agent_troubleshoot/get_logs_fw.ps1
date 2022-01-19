@@ -22,7 +22,7 @@ Write-Host "This is the Domotz Support Diagnostic application.
 It will create a zip file on your Desktop which you will send to support@domotz.com
 "
 
-Read-Host -Prompt "Press any key to continue or CTRL+C to quit" 
+Read-Host -Prompt "Press ENTER to continue or CTRL+C to quit" 
 
 
 $agentInstDir_compl= Get-ItemProperty HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\domotz | Select-Object UninstallString
