@@ -5,21 +5,6 @@
 # - checks for Domotz Cloud connectivity (outgoing)
 # - perform a test with the selected Speedtest - if enabled -
 
-$agentInstDir_compl= Get-ItemProperty HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\domotz | Select-Object UninstallString
-$agentInstDir=$agentInstDir_compl.UninstallString.Trim('"') -replace "uninstall.exe", ""
-$agentDataDir="$Env:ALLUSERSPROFILE\domotz"
-
-# Domotz logs variables
-$date=Get-Date -Format "dd-MM-yyyy-HH-mm-ss"
-$DesktopPath = [Environment]::GetFolderPath("Desktop")
-$agentConfFile="$agentDataDir\domotz.json"
-$listernerLogDir="$agentDataDir\log"
-$daemonLogDir="$agentInstDir\bin\daemon"
-$domotzService = "Domotz Agent"
-$domotzNode="$agentInstDir\bin\domotz_node.exe"
-$currentScriptPath=$MyInvocation.MyCommand.Path
-$currentDir=Split-Path $currentScriptPath -Parent
-
 # Motd
 Write-Host "
 +------------------------------------------------+
@@ -32,11 +17,27 @@ Write-Host "
 | ---------------------------------------------- |
 | The RMM tool for Networks and Connected Devices|
 +------------------------------------------------+
-This is the Domotz Support Diagnostic application. 
-It will create a zip file on your Desktop which you will send to support@domotz.com"
+"
+Write-Host "This is the Domotz Support Diagnostic application. 
+It will create a zip file on your Desktop which you will send to support@domotz.com
+"
 
 Read-Host -Prompt "Press any key to continue or CTRL+C to quit" 
 
+
+$agentInstDir_compl= Get-ItemProperty HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\domotz | Select-Object UninstallString
+$agentInstDir=$agentInstDir_compl.UninstallString.Trim('"') -replace "uninstall.exe", ""
+$agentDataDir="$Env:ALLUSERSPROFILE\domotz"
+
+# Domotz logs variables
+$date=Get-Date -Format "dd-MM-yyyy-HH-mm-ss"
+$DesktopPath = [Environment]::GetFolderPath("Desktop")
+$agentConfFile="$agentDataDir\domotz.json"
+$listernerLogDir="$agentDataDir\log"
+$daemonLogDir="$agentInstDir\bin\daemon"
+$domotzService = "Domotz Agent"
+$domotzNode="$agentInstDir\bin\domotz_node.exe"
+$currentDir=$PSScriptRoot
 
 # Domotz Firewall hosts and ports variables
 $ProgressPreference="SilentlyContinue";
@@ -64,7 +65,6 @@ $domotzBox_hosts = @(
     [pscustomobject]@{host = "api.snapcraft.io"; port = "443"; model = "B-12"}
 )
 
-
 # Check for Domotz service
 if (-not(Get-Service $domotzService -ErrorAction SilentlyContinue))
 {
@@ -74,9 +74,7 @@ if (-not(Get-Service $domotzService -ErrorAction SilentlyContinue))
     exit
 }
 
-Write-Host "############################"
-Write-Host "->> Domotz Support Script"
-Write-Host "############################"
+Write-Host "Loading..."
 Write-Host ""
 
 # Test installation dir
@@ -359,7 +357,10 @@ else {
     exit
 }
 Write-Host " Done!"
-Write-Host ""
-Write-Host "File $DesktopPath\$customerLogDir.zip which contains your agent logs and reports has been created!" 
+Write-Host "
+PLEASE READ THIS:"
+Write-Host "File $DesktopPath\$customerLogDir.zip file which contains your agent logs and reports has been created!" 
 Write-Host "N.B. Please send this to support@domotz.com"
 Write-Host ""
+Read-Host -Prompt "Domotz Diagnostics has finished his job! Thank you for using it!
+Please, press any key to EXIT!" 
