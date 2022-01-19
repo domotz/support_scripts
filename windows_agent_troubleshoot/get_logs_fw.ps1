@@ -5,6 +5,8 @@
 # - checks for Domotz Cloud connectivity (outgoing)
 # - perform a test with the selected Speedtest - if enabled -
 
+$dscriptver="0.9.9"
+
 # Motd
 Write-Host "
 +------------------------------------------------+
@@ -174,6 +176,7 @@ else {
         $cell="EU"
         $hosts=$euhosts
     }
+    Add-Content $reportFile "Diagnostic Script version: $dscriptver"
     Add-Content $reportFile "Agent cell: $cell"
     Add-Content $reportFile "Agent ID: $agentID"
     Add-Content $reportFile "Agent Name: $agentName"
@@ -362,5 +365,7 @@ PLEASE READ THIS:"
 Write-Host "File $DesktopPath\$customerLogDir.zip file which contains your agent logs and reports has been created!" 
 Write-Host "N.B. Please send this to support@domotz.com"
 Write-Host ""
-Read-Host -Prompt "Domotz Diagnostics has finished his job! Thank you for using it!
-Please, press any key to EXIT!" 
+Write-Host "Domotz Diagnostics has finished his job! Thank you for using it!"
+Write-Host ""
+Write-Host "Please, press ENTER to EXIT or close this window!" -NoNewLine
+$UserInput = $Host.UI.ReadLine()
