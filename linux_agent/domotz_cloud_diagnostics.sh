@@ -33,7 +33,7 @@ echo "+------------------------------------------------+
 This script check that the connection to the Domotz Cloud is reliable
 "
 
-echo "Which area do you reside?"
+echo "In which area is your Domotz Agent located?"
 PS3='Please enter 1,2,3 or 4:'
 options=("USA" "Europe" "APAC" "Quit")
 select opt in "${options[@]}"
