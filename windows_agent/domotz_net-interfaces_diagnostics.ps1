@@ -28,6 +28,8 @@ $date=Get-Date -Format "dd-MM-yyyy-HH-mm-ss"
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
 $listernerLogDir="$agentDataDir\log"
 $daemonLogDir="$agentInstDir\bin\daemon"
+$domotzNode="$agentInstDir\bin\domotz_node.exe"
+
 
 $customerLogDir="domotz-OS-Nics-info-logs-$date"
 $reportFile="$DesktopPath\$customerLogDir\agent_short_report.txt"
@@ -55,6 +57,10 @@ Get-NetAdapter -Name * | Out-File $briefNicInfoFile
 # Get Interfaces IP Info
 $ipNicInfoFile="$DesktopPath\$customerLogDir\interfaces_brief_info.txt"
 Get-NetIPConfiguration -All | Out-File $ipNicInfoFile
+
+# Get Interfaces from Domotz Node
+$ipDomotzNodeInt="$DesktopPath\$customerLogDir\node_interfaces.txt"
+&"$domotzNode" -e "console.log(require(`'os`').networkInterfaces());" | Out-File $ipDomotzNodeInt
 
 # Collect Listener logs
 Write-Host ""
