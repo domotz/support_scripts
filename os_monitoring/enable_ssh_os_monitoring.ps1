@@ -94,7 +94,7 @@ if (!($sshdFirewallInboundRuleStatus -eq "Ok")){
 }
 
 Read-Host -Prompt "IMPORTANT-> Will you be using a non administrative user to unlock your Windows machine?
-IF you will please press ENTER, otherwise hit  CTRL+C to QUIT!"
+IF you will, please press ENTER, otherwise hit CTRL+C to QUIT!"
 Write-Host ""
 
 do {
@@ -105,3 +105,9 @@ until (($response -eq "y") -or ($response -eq "Y"))
 
 $currentDir=$PSScriptRoot
 &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2 add $username Enable,RemoteAccess
+&"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2/Security/MicrosoftVolumeEncryption add $username Enable,RemoteAccess
+
+Write-Host "-> Added permissions to WMI for user [$username]
+
+SSH Configuration for OS_monitoring is completed, you can now go and unlock this device in Domotz!
+"
