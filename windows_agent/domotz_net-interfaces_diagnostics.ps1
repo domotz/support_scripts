@@ -59,8 +59,10 @@ $ipNicInfoFile="$DesktopPath\$customerLogDir\interfaces_brief_info.txt"
 Get-NetIPConfiguration -All | Out-File $ipNicInfoFile
 
 # Get Interfaces from Domotz Node
-$ipDomotzNodeInt="$DesktopPath\$customerLogDir\node_interfaces.txt"
-&"$domotzNode" -e "console.log(require(`'os`').networkInterfaces());" | Out-File $ipDomotzNodeInt
+if (Test-Path -Path $domotzNode){
+    $ipDomotzNodeInt="$DesktopPath\$customerLogDir\node_interfaces.txt"
+    &"$domotzNode" -e "console.log(require(`'os`').networkInterfaces());" | Out-File $ipDomotzNodeInt
+}
 
 # Collect Listener logs
 Write-Host ""
