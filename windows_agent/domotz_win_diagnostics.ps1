@@ -71,6 +71,9 @@ $domotzBox_hosts = @(
 )
 
 # Creating Log dir
+Write-Host ""
+Write-Host -noNewLine "-> Creating diagnostic/logs dirs on Desktop"
+
 if (!(Test-Path $DesktopPath\$customerLogDir -PathType Container)) {
     New-Item -ItemType Directory -Force -Path $DesktopPath\$customerLogDir | Out-Null
 }
@@ -98,6 +101,12 @@ if (-not(Test-Path -Path $daemonLogDir)) {
         throw $_.Exception.Message
     }
 }
+Write-Host " Done!"
+
+
+# Check Domotz Agent installation/service status
+Write-Host ""
+Write-Host -noNewLine "-> Checking Domotz Agent installation/service status"
 
 # Check if the Domotz Service exists
 if (-not(Get-Service $domotzService -ErrorAction SilentlyContinue))
@@ -172,8 +181,12 @@ else {
         Add-Content $reportFile "Agent listens on: $agentListensOn"
     }
 }
+Write-Host " Done!"
 
 # Collect Network Information
+Write-Host ""
+Write-Host -noNewLine "-> Collecting Network Configuration info...."
+
 try {
     $netInfo=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/net-info -TimeoutSec 10
 }
@@ -236,12 +249,18 @@ if ($dup_int) {
 }
 
 # Get Computer info
+Write-Host ""
+Write-Host -noNewLine "-> Collecting Operating System info... please wait..."
+
 $osinfoFile="$DesktopPath\$customerLogDir\os_info.txt"
-Get-ComputerInfo | Out-File $osinfoFile 
+Get-ComputerInfo | Out-File $osinfoFile
+
+Write-Host " Done!"
 
 # Collect Listener logs
 Write-Host ""
 Write-Host -noNewLine "-> Collecting Domotz Logs... please wait..."
+
 if (Test-Path $listernerLogDir -PathType Container){
     if (!(Test-Path $DesktopPath\$customerLogDir\listener_logs -PathType Container)) {
         New-Item -ItemType Directory -Force -Path $DesktopPath\$customerLogDir\listener_logs | Out-Null
@@ -275,6 +294,7 @@ if (!$flushLog) {
 else {
     $flushLog | ConvertFrom-Json | Out-File $DesktopPath\$customerLogDir\listener_logs\flushed_log.txt
 }
+
 Write-Host " Done!"
 
 # check for Npcap issue - This has to be reviewed - have to find better evidence $match_str is too generic #TODO
@@ -297,37 +317,37 @@ Write-Host " Done!"
 
 ##ADD check for the Nmap version and stuff - not ready yet ...
 ##https://domotzjira.atlassian.net/browse/NI-386 
-# try {
-#     $domotzStatus=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/status -TimeoutSec 10
-# }
-# catch {
-#     Write-Host "Checking for the Nmap version and stuff -->" $_.Exception.Message
-#     $lastError=$_.Exception.Message
-# }
+try {
+    $domotzStatus=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/status -TimeoutSec 10
+}
+catch {
+    Write-Host "Checking for the Nmap version and stuff -->" $_.Exception.Message
+    $lastError=$_.Exception.Message
+}
 
-# if (!$domotzStatus) {
-#     Add-Content $warningsFile ""
-#     Add-Content $warningsFile "-> WARNING: Unable to check for Nmap version and stuff from 127.0.0.1:3000"
-#     Add-Content $warningsFile $lastError
-# }
-# else {
-    # $domotzStatusObj=$domotzStatus | ConvertFrom-Json
-    # $nmapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "version"
-    # $npcapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "npcap"
-    # $nmapLiblua=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-liblua"
-    # $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-libssh2"
-    # $libPcap=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "libpcap"
-    # $ipv6Support=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "ipv6"
+if (!$domotzStatus) {
+    Add-Content $warningsFile ""
+    Add-Content $warningsFile "-> WARNING: Unable to check for Nmap version and stuff from 127.0.0.1:3000"
+    Add-Content $warningsFile $lastError
+}
+else {
+    $domotzStatusObj=$domotzStatus | ConvertFrom-Json
+    $nmapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "version"
+    $npcapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "npcap"
+    $nmapLiblua=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-liblua"
+    $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-libssh2"
+    $libPcap=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "libpcap"
+    $ipv6Support=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "ipv6"
 
-    # Add-Content $reportFile "[Nmap Details]"
-    # Add-Content $reportFile "Nmap version=$nmapVersion"
-    # Add-Content $reportFile "Npcap version=$npcapVersion"
-    # Add-Content $reportFile "NmapLibLua version=$nmapLiblua"
-    # Add-Content $reportFile "NpmapLibSsh2 version=$nmapLibssh2"
-    # Add-Content $reportFile "lib-pcap version=$libPcap"
-    # Add-Content $reportFile "nmap ipv6Support=$ipv6Support"
-# }
-# Write-Host " Done!"
+    Add-Content $reportFile "[Nmap Details]"
+    Add-Content $reportFile "Nmap version=$nmapVersion"
+    Add-Content $reportFile "Npcap version=$npcapVersion"
+    Add-Content $reportFile "NmapLibLua version=$nmapLiblua"
+    Add-Content $reportFile "NpmapLibSsh2 version=$nmapLibssh2"
+    Add-Content $reportFile "lib-pcap version=$libPcap"
+    Add-Content $reportFile "nmap ipv6Support=$ipv6Support"
+}
+Write-Host " Done!"
 
 
 # Domotz Agent -- Test Firewall
@@ -391,13 +411,17 @@ foreach ($a in $domotzBox_hosts) {
 }
 Write-Host " Done!"
 
+
 # Speedtest check
-# if (Test-Path -Path $currentDir\fast_speed_test.js -PathType Leaf) {
-#     Write-Host ""
-#     Write-Host "Speedtest check --- this could take some time --- Please wait... (it is running don't worry :) )"
-#     $speedtestReportFile="$DesktopPath\$customerLogDir\fast_test.txt"
-#     &"$domotzNode" $currentDir\fast_speed_test.js | Out-File $speedtestReportFile
-# }
+if (Test-Path -Path $currentDir\fast_speed_test.js -PathType Leaf) {
+    Write-Host ""
+    Write-Host "Speedtest check --- this could take some time --- Please wait... (it is running don't worry :) )"
+    
+    $speedtestReportFile="$DesktopPath\$customerLogDir\speedtest_check_log.txt"
+    &"$domotzNode" $currentDir\fast_speed_test.js | Out-File $speedtestReportFile
+    
+    Write-Host " Done!"
+}
 
 # Create the final Zip file
 Write-Host ""
