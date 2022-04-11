@@ -9,12 +9,12 @@ if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
     break
 }
 else {
-    Write-Host "Code is running as administrator - nice to hear that!" -ForegroundColor Green
+    Write-Information "Code is running as administrator - nice to hear that!"
 }
 
 
 # Motd
-Write-Host "
+Write-Output "
 +------------------------------------------------+
 |  ___                             _             |
 | (  _'\                          ( )_           |
@@ -26,7 +26,7 @@ Write-Host "
 | The RMM tool for Networks and Connected Devices|
 +------------------------------------------------+
 "
-Write-Host "This utility will enable SSH on your Windows OS to unlock the Domotz OS Monitoring feature.  (ver. $dscriptver)
+Write-Output "This utility will enable SSH on your Windows OS to unlock the Domotz OS Monitoring feature.  (ver. $dscriptver)
 "
 
 $openSSHClientState=Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Client*' | Select-Object -ExpandProperty "State"
@@ -35,30 +35,30 @@ $openSSHClientVer=Get-WindowsCapability -Online | Where-Object Name -like 'OpenS
 $openSSHServerVer=Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*' | Select-Object -ExpandProperty "Name"
 
 if (!($openSSHClientState -eq "Installed")){
-    Write-Host "OpenSSH Client is not installed on this system... we are going to install it"
-    Read-Host -Prompt "-> please press ENTER to install it or CTRL+C to quit" 
-    Write-Host "
+    Write-Output "OpenSSH Client is not installed on this system... we are going to install it"
+    Read-Host -Prompt "-> please press ENTER to install it or CTRL+C to quit"
+    Write-Output "
     OpenSSH Client is installing... please wait....."
     Add-WindowsCapability -Online -Name $openSSHClientVer
-    Write-Host "Done! -> OpenSSH Client is installed!
-    "   
+    Write-Output "Done! -> OpenSSH Client is installed!
+    "
 }
 else {
-    Write-Host "-> OpenSSH Client is installed!
+    Write-Output "-> OpenSSH Client is installed!
     "
 }
 
 if (!($openSSHServerState -eq "Installed")){
-    Write-Host "OpenSSH Server is not installed on this system... we are going to install it"
+    Write-Output "OpenSSH Server is not installed on this system... we are going to install it"
     Read-Host -Prompt "-> please press ENTER to install it or CTRL+C to quit"
-    Add-WindowsCapability -Online -Name $openSSHServerVer 
-    Write-Host "
+    Add-WindowsCapability -Online -Name $openSSHServerVer
+    Write-Output "
     OpenSSH Server is installing... please wait.....
     "
-    Write-Host "Done! -> OpenSSH Server is installed!"
+    Write-Output "Done! -> OpenSSH Server is installed!"
 }
 else {
-    Write-Host "-> OpenSSH Server is installed!
+    Write-Output "-> OpenSSH Server is installed!
     "
 }
 
@@ -70,32 +70,32 @@ Set-Service -Name sshd -StartupType 'Automatic'
 $sshdFirewallInboundRuleName=Get-NetFirewallRule -Name *ssh* |  Select-Object -ExpandProperty "Name" #should be OpenSSH-Server-In-TCP
 
 if (!(($sshdFirewallInboundRuleName -eq "OpenSSH-Server-In-TCP") -or ($sshdFirewallInboundRuleName -eq "OpenSSH Server (sshd)"))) {
-    Write-Host "
+    Write-Output "
     No Firewall sshd inbound rule"
     Read-Host -Prompt "-> please press ENTER to create one or CTRL+C to quit"
     New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-    Write-Host "-> OpenSSH Server (sshd) Firewall Inbound Rule created!
+    Write-Output "-> OpenSSH Server (sshd) Firewall Inbound Rule created!
     "
 }
 else {
-    Write-Host "-> OpenSSH Server (sshd) Firewall Inbound Rule is present!
+    Write-Output "-> OpenSSH Server (sshd) Firewall Inbound Rule is present!
     "
 }
 
 $sshdFirewallInboundRuleStatus=Get-NetFirewallRule -Name *ssh* |  Select-Object -ExpandProperty "PrimaryStatus" #should be OK
 
 if (!($sshdFirewallInboundRuleStatus -eq "Ok")){
-    Write-Host "
+    Write-Output "
     Standard SSHd Firewall Rule seems to be in a wrong status"
     Read-Host -Prompt "-> please press ENTER to create a new one or CTRL+C to quit"
     New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-    Write-Host "-> Another OpenSSH Server (sshd) Firewall Inbound Rule created (the other one had the wrong state!)
+    Write-Output "-> Another OpenSSH Server (sshd) Firewall Inbound Rule created (the other one had the wrong state!)
     "
 }
 
 Read-Host -Prompt "IMPORTANT-> Will you be using a non administrative user to unlock your Windows machine?
 IF you will, please press ENTER, otherwise hit CTRL+C to QUIT!"
-Write-Host ""
+Write-Output ""
 
 do {
     $username=Read-Host -Prompt "Please enter the username you want to use"
@@ -107,7 +107,7 @@ $currentDir=$PSScriptRoot
 &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2 add $username Enable,RemoteAccess
 &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2/Security/MicrosoftVolumeEncryption add $username Enable,RemoteAccess
 
-Write-Host "-> Added permissions to WMI for user [$username]
+Write-Output "-> Added permissions to WMI for user [$username]
 
 SSH Configuration for OS_monitoring is completed, you can now go and unlock this device in Domotz!
 "
