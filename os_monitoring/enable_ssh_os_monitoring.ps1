@@ -93,21 +93,39 @@ if (!($sshdFirewallInboundRuleStatus -eq "Ok")){
     "
 }
 
-Read-Host -Prompt "IMPORTANT-> Will you be using a non administrative user to unlock your Windows machine?
-IF you will, please press ENTER, otherwise hit CTRL+C to QUIT!"
-Write-Output ""
+if (Test-Path -Path $currentDir\Set-WmiNamespaceSecurity.ps1 -PathType Leaf) {
+    Read-Host -Prompt "IMPORTANT-> Do you want to use a non administrative user to unlock your Windows machine?
+    IF you do, please press ENTER, otherwise hit CTRL+C to QUIT!"
+    Write-Output ""
 
-do {
-    $username=Read-Host -Prompt "Please enter the username you want to use"
-    $response = Read-Host "Are you sure the user is " "[$username]" "? (Y|N)"
+    do {
+        $username=Read-Host -Prompt "Please enter the username you want to use"
+        $response = Read-Host "Are you sure the user is " "[$username]" "? (Y|N)"
+    }
+    until (($response -eq "y") -or ($response -eq "Y"))
+
+    $currentDir=$PSScriptRoot
+    &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2 add $username Enable,RemoteAccess
+    &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2/Security/MicrosoftVolumeEncryption add $username Enable,RemoteAccess
+
+    Write-Output "-> Added permissions to WMI for user [$username]
+
+    ##### SSH Configuration for OS_monitoring is completed!!
+
+    IMPORTANT: It might take up to 3 hours to see the unlock option in the Domotz Access Management, depending on the size of your network.
+    "
 }
-until (($response -eq "y") -or ($response -eq "Y"))
+else {
+    Write-Output "###### SSH Configuration for OS_monitoring is completed for Administrative Users!
 
-$currentDir=$PSScriptRoot
-&"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2 add $username Enable,RemoteAccess
-&"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2/Security/MicrosoftVolumeEncryption add $username Enable,RemoteAccess
 
-Write-Output "-> Added permissions to WMI for user [$username]
+PLEASE NOTE THAT: It might take up to 3 hours to see the unlock option in the Domotz Access Management, depending on the size of your network.
 
-SSH Configuration for OS_monitoring is completed, you can now go and unlock this device in Domotz!
-"
+
+####################################################################################################################
+If you want to enable the unlock also for non-administrative users, please download the Set-WmiNamespaceSecurity.zip 
+from https://github.com/domotz/support_scripts/windows_agent and check the README.txt file before using it
+####################################################################################################################
+    
+    "
+}
