@@ -1,5 +1,6 @@
 # Domotz script to enable SSH for OS Monitoring
 $dscriptver="0.1"
+$currentDir=$PSScriptRoot
 
 # Check if you have administrative privileges to run this script
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
@@ -104,7 +105,6 @@ if (Test-Path -Path $currentDir\Set-WmiNamespaceSecurity.ps1 -PathType Leaf) {
     }
     until (($response -eq "y") -or ($response -eq "Y"))
 
-    $currentDir=$PSScriptRoot
     &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2 add $username Enable,RemoteAccess
     &"$currentDir/Set-WmiNamespaceSecurity.ps1" root/cimv2/Security/MicrosoftVolumeEncryption add $username Enable,RemoteAccess
 
