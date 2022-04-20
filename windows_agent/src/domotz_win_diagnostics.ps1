@@ -301,7 +301,7 @@ Write-Host " Done!"
 Write-Host ""
 Write-Host -noNewLine "-> Checking for win Npcap issues please wait..."
 
-$npcap_info=Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, InstallDate | Where -Property DisplayName -Match Npcap
+$npcap_info=Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, InstallDate | Where-Object -Property DisplayName -Match Npcap
 $npcap_version=$npcap_info.DisplayVersion
 Add-Content $reportFile "Npcap version=$npcap_version"
 
