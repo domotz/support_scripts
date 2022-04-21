@@ -1,4 +1,4 @@
-## Domotz ssh enable PowerShell script for to unock the OS Monitoring feature on your Windows endopoints 
+## Domotz SSH enable PowerShell script to unlock the OS Monitoring feature on your Windows endpoints 
 
 
 TROUBLESHOOTING
@@ -15,17 +15,15 @@ To set it back:
 Set-ExecutionPolicy Undefined -Scope LocalMachine
 
 
-2) You are unable to unlock your device in Domotz even if you have run the script with no errors.
+2) You are unable to unlock your device in Domotz even after running the script with no errors.
 
-Reason: sometimes user priveleges are not reloaded after the modification.
-Solution: Please reboot the Windows Pc to relead the user priveleges and permissions.
+Reason: sometimes user privileges are not reloaded after the modification.
+Solution: Please reboot the Windows Pc to reload the user privileges and permissions.
 
 
 3) You are unable to see the OS_Monitoring on SSH option in the Access Manager section
 
-Reason: the agent has not yet discovered the ssh service open on your windows endopoint.
-Solution: wait from 1 to 3 hours and check again
+Reason: the agent has not yet discovered the SSH service open on your Windows endpoint.
+Solution: wait up to 3 hours and check again. The agent may take up to 3 hours to detect the SSH running on the endpoint.
 
-
-
-It you encounter another isse not listed above please contact support@domotz.com and report it.
+If you encounter another issue not listed above, please email support@domotz.com and report it.

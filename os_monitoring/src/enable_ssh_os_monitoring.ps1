@@ -145,9 +145,9 @@ depending on the size of your network.
 Then you will be able to use an Administrative account to unlock your device using SSH
 ###############################################################################################################
 
-IMPORTANT: If you want to enable the unlock also for non-administrative users, please download the 
-Set-WmiNamespaceSecurity.zip from https://github.com/domotz/support_scripts/windows_agent and check the 
-README_WmiNamespaceSecurity.txt file to using it.
+IMPORTANT: If you want to enable the unlock also for non-administrative users, please download the file
+https://github.com/domotz/support_scripts/raw/main/os_monitoring/Set-WmiNamespaceSecurity.zip and check the 
+README_WmiNamespaceSecurity.txt to see how to use it.
 
 ###############################################################################################################
 "
