@@ -2,7 +2,7 @@ Domotz Diagnostic Powershell Script
 
 
 TROUBLESHOOTING
-1) if you get this king of error:
+1) if you receive the following error:
 
 .\domotz_win_diagnostics.ps1 : File
 C:\...\domotz_win_diagnostics.ps1 cannot be loaded
@@ -22,6 +22,6 @@ Set-ExecutionPolicy unrestricted
 
 2) run the script again
 
-3) After it has completed all his steps and created a .zip file on your Desktop, please revert the PS ExecutionPolify back to restricted:
+3) After it has completed all its steps and created a .zip file on your Desktop, please revert the PS ExecutionPolify back to restricted:
 
 Set-ExecutionPolicy restricted
