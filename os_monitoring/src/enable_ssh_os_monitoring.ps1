@@ -1,4 +1,4 @@
-# Domotz script to enable SSH for OS Monitoring
+# Domotz script to enable SSH on Microsoft Windows for OS Monitoring
 # Please read the README file before using
 
 $dscriptver="0.1.1"
@@ -36,6 +36,17 @@ $openSSHClientState=Get-WindowsCapability -Online | Where-Object Name -like 'Ope
 $openSSHServerState=Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*' | Select-Object -ExpandProperty "State"
 $openSSHClientVer=Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Client*' | Select-Object -ExpandProperty "Name"
 $openSSHServerVer=Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*' | Select-Object -ExpandProperty "Name"
+
+if (!($openSSHClientVer)){
+    Write-Output "OpenSSH Client Ver cannot be found adding default version"
+    $openSSHClientVer="OpenSSH.Client~~~~0.0.1.0"
+}
+
+if (!($openSSHServerVer)){
+    Write-Output "OpenSSH Server Ver cannot be found adding default version"
+    $openSSHServerVer="OpenSSH.Server~~~~0.0.1.0"
+}
+
 
 if (!($openSSHClientState -eq "Installed")){
     Write-Output "OpenSSH Client is not installed on this system... we are going to install it"

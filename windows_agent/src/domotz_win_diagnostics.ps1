@@ -223,7 +223,7 @@ if (Test-Path -Path $domotzNode){
     $ipDomotzNodeGw="$DesktopPath\$customerLogDir\node_info\node_gw_info.txt"
     $ipDomotzNodeGw2="$DesktopPath\$customerLogDir\node_info\node_gw_info_2.txt"
     $ipDomotzNodeGw3="$DesktopPath\$customerLogDir\node_info\node_gw_info_3.txt"
-    Set-Location $remotePawnDir
+    Set-Location $agentInstDir\lib\node_modules\domotz-remote-pawn
     &"$domotzNode" -e "console.log(JSON.stringify(require(`'default-gateway`').v4.sync()))" | Out-File $ipDomotzNodeGw
     Get-CimInstance Win32_NetworkAdapterConfiguration -filter "IPEnabled=true" | Select-Object DefaultIPGateway,Index | ConvertTo-JSON | Out-File $ipDomotzNodeGw2
     $gwIndex = Get-CimInstance Win32_NetworkAdapterConfiguration -filter "IPEnabled=true" |  Select-Object DefaultIPGateway,Index |Where-Object { $_.DefaultIPGateway -ne $null} | Select-Object -ExpandProperty Index
@@ -309,19 +309,19 @@ $match_str="Cannot find MAC address for device with IP"
 if(Select-String -Path $DesktopPath\$customerLogDir\listener_logs\*.log.* -Patter $match_str){
     $npcapIssueReport="$DesktopPath\$customerLogDir\npcap_issue_maybe_detected.txt"
     Add-Content $warningsFile ""
-    Add-Content $warningsFile "-> WARNING: this is agent can have the NPCAP issue"
+    Add-Content $warningsFile "-> WARNING: this is agent may have the NPCAP issue"
     Add-Content $warningsFile "### NB: This has to be reviewed and could not be accurate! have to find better evidence $match_str is too generic!!"
     Select-String -Path $DesktopPath\$customerLogDir\listener_logs\*.log.* -Patter $match_str | Out-File -Encoding Ascii -Append $npcapIssueReport
 }
 Write-Host " Done!"
 
-##ADD check for the Nmap version and stuff - not ready yet ...
+##ADD check for the Nmap version and details - not ready yet ...
 ##https://domotzjira.atlassian.net/browse/NI-386 
 try {
     $domotzStatus=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/status -TimeoutSec 10
 }
 catch {
-    Write-Host "Checking for the Nmap version and stuff -->" $_.Exception.Message
+    Write-Host "Checking for the Nmap version and details -->" $_.Exception.Message
     $lastError=$_.Exception.Message
 }
 
@@ -332,19 +332,26 @@ if (!$domotzStatus) {
 }
 else {
     $domotzStatusObj=$domotzStatus | ConvertFrom-Json
-    $nmapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "version"
-    $npcapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "npcap"
-    $nmapLiblua=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-liblua"
-    $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "nmap-libssh2"
-    $libPcap=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "libpcap"
-    $ipv6Support=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "libraries" | Select-Object -ExpandProperty "ipv6"
+    $nmapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap"
+    $nmapLiblua=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap-liblua"
+    $openssl=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "openssl"
+    $nmapLibssh2=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap-libssh2"
+    $nmaplibz=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap-libz"
+    $nmaplibpcre=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap-libpcre"
+    $npcapVersion=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "Npcap"
+    $nmaplibdnet=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "nmap-libdnet"
+    $ipv6Support=$domotzStatusObj | Select-Object -ExpandProperty "package" | Select-Object -ExpandProperty "nmap" | Select-Object -ExpandProperty "ipv6"
 
     Add-Content $reportFile "[Nmap Details]"
     Add-Content $reportFile "Nmap version=$nmapVersion"
     Add-Content $reportFile "Npcap version=$npcapVersion"
+    Add-Content $reportFile "OpenSSL version=$openssl"
+    Add-Content $reportFile "Nmap liblua=$nmapLiblua"
     Add-Content $reportFile "NmapLibLua version=$nmapLiblua"
-    Add-Content $reportFile "NpmapLibSsh2 version=$nmapLibssh2"
-    Add-Content $reportFile "lib-pcap version=$libPcap"
+    Add-Content $reportFile "Npmap LibSsh2 version=$nmapLibssh2"
+    Add-Content $reportFile "Npmap Libz version=$nmaplibz"
+    Add-Content $reportFile "Npmap Libpcre version=$nmaplibpcre"
+    Add-Content $reportFile "Npmap Libdnet version=$nmaplibdnet"
     Add-Content $reportFile "nmap ipv6Support=$ipv6Support"
 }
 Write-Host " Done!"
