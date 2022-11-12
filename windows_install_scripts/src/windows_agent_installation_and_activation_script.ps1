@@ -3,7 +3,7 @@
 # Please edit the following lines 
 $ActivationKey = "You API key here"
 $ApiEndpoint = "Your API endpoint here, like https://api-eu-west-1-cell-1.domotz.com/public-api/v1/ or https://api-us-east-1-cell-1.domotz.com/public-api/v1/"
-$AgentName = "Your agent name here"
+$AgentName = "Your Agent name here"
 
 $AgentUrl = "https://portal.domotz.com/download/agent_packages/domotz-windows-x64-10.exe"
 
@@ -43,7 +43,7 @@ $IsInstalled = $false
 do {
     Get-Process domotzagent -ErrorAction SilentlyContinue -ErrorVariable ProcessError 
     if ($ProcessError) {
-        Write-Host "Please wait for installation to finish, this might take a while..."
+        Write-Host "Please wait for installation to finish, this might take a while (this message may repeat until finished)..."
         Start-Sleep -s 2
     }
     else {
