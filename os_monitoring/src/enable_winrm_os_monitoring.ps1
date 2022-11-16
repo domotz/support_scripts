@@ -31,7 +31,7 @@
 
 .EXAMPLE
 
-    .\enable_winrm_os_monitoring_new.ps1 -UserName domotz\domotztestuser -GroupName domotz\ddomaingrp
+        .\enable_winrm_os_monitoring_new.ps1 -UserName domotz\domotztestuser -GroupName domotz\ddomaingrp
         Checks if the group exists in AD and the user is a member of the group, if not it terminates (no attempt to create objects in AD are made by the script).
         If the group exists and the user is a member of the group the script grants permissions to the group on the WinRM default listener
 .EXAMPLE
@@ -66,6 +66,9 @@ param (
 
     [Parameter()]
     [string]$GroupName = "DomotzWinRM",
+
+    [Parameter()]
+    [string]$LogfilePath = "$PSScriptRoot",
 
     [Parameter()]
     [ValidateSet("Domain", "Private")]
@@ -220,7 +223,7 @@ function Add-WinRMDaclRule {
         $newSddl = $sd.GetSddlForm([System.Security.AccessControl.AccessControlSections]::All)
         if ($newSddl -ne $sddl -and $PSCmdlet.ShouldProcess($Name, "Add DACL entry")) {
 
-            Set-Item -LiteralPath WSMan:\localhost\Service\RootSDDL -Value $newSddl -Force
+            Set-Item -LiteralPath WSMan:\localhost\Service\RootSDDL -Value $newSddl -Force | Out-Null
         }
 
     }
@@ -310,12 +313,14 @@ function Find-User {
    
         if ([bool]$ADSearcher.FindOne()) {
             $ret.Msg += "User $Username found in AD`n" 
+        
         }
         else {
             $ret.Msg += "User $Username does not exist, please create it on domain $DomainName`n" 
             $ret.Msg += "Aborting...`n" 
             $ret.RC = $false
         }
+        $ret.RandomPwd = $false
         
     }
     else {
@@ -340,8 +345,8 @@ function Find-User {
 
 
 #-------------------------------------------------------------------------------
-$dscriptver = "0.3.6"
-$LogFile = "$PSScriptRoot\$($MyInvocation.MyCommand.Name)-$(Get-Date -Format 'yyyy-MM-dd_HH-MM-ss').log"
+$dscriptver = "0.3.8"
+$LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-MM-ss').log"
 $RC = 0
 Start-Transcript -Path $LogFile
 Write-Output "Starting at $(Get-Date)"
