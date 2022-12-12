@@ -1,0 +1,20 @@
+# Domotz Netplan - Static ip address
+# the NICs names have to be edited with yours - you can find them by using the issuing 'sudo ifconfig' or 'ip a'
+network:
+    version: 2
+    ethernets:
+        eth0: # NIC name - to be changed (replace eth* with your NIC name)
+            dhcp6: false
+            dhcp4: false
+            addresses: [192.168.1.250/24] # change with the right static ip address of the Domotz Agent 
+            gateway4: 192.168.1.1 # change with the gatway address of your network
+            nameservers: 
+                addresses: [ "8.8.8.8", "1.1.1.1" ]
+        eth1: # NIC name - to be changed (replace eth* with your NIC name)
+            dhcp6: false
+            dhcp4: false
+            addresses: [192.168.2.250/24] # change with the right static ip address followed by subnet mask in / format
+        eth2: # NIC name - to be changed (replace eth* with your NIC name)
+            dhcp6: false
+            dhcp4: false
+            addresses: [192.168.3.250/24] # change with the right static ip address followed by subnet mask in / format
