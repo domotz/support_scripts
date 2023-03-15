@@ -363,9 +363,8 @@ function Set-WinRmConfig {
         Enable-PSRemoting -Force
     }
     
-    Write-Host "Setting AllowUnencrypted and Basic Authentication to true"
+    Write-Host "Setting AllowUnencrypted to true"
     winrm set winrm/config/service '@{AllowUnencrypted="true"}' | Out-Null
-    winrm set winrm/config/service/auth '@{Basic="true"}' | Out-Null
     [xml]$WinRmConfig = winrm get winrm/config/service -format:pretty
 
     if (([string]::IsNullOrEmpty($WinRmConfig.Service.AllowUnencrypted.Source))) {
@@ -375,13 +374,7 @@ function Set-WinRmConfig {
         $AllowUnencrypted = ($WinRmConfig.Service.AllowUnencrypted.'#text')
     }
  
-    if (([string]::IsNullOrEmpty($WinRmConfig.Service.Auth.Basic.Source))) {
-        $BasicAuth = ($WinRmConfig.Service.Auth.Basic) 
-    } 
-    else { 
-        $BasicAuth = ($WinRmConfig.Service.Auth.Basic.'#text') 
-    }
-    if (($AllowUnencrypted -eq "true") -and ($BasicAuth -eq "true")) {
+    if (($AllowUnencrypted -eq "true")) {
         $RC.result = $true
     }
     $RC.output = winrm get winrm/config/service
@@ -390,7 +383,7 @@ function Set-WinRmConfig {
 }
 
 #-------------------------------------------------------------------------------
-$dscriptver = "0.4"
+$dscriptver = "0.5"
 $VersionBanner = "$($MyInvocation.MyCommand.Name) Version $dscriptver"
 $line = (0..$($VersionBanner.length / 2 )) | ForEach-Object { $line + "-" }
 Write-Host $line -ForegroundColor Blue -BackgroundColor White
@@ -561,9 +554,8 @@ if ($($WinRMConfig.result)) {
         if ($WmiRestartMsg) {
             Write-Output $WmiRestartMsg 
         }
-        Write-Warning "We have configured WinRM to allow unencrypted basic authentication, if you want to rollback run the following commands:"
-        Write-Output "winrm set winrm/config/service '@{AllowUnencrypted=""true""}'"
-        Write-Output "winrm set winrm/config/service/auth '@{Basic=""true""}'"
+        Write-Warning "We have configured WinRM to allow unencrypted authentication, if you want to rollback run the following commands:"
+        Write-Output "winrm set winrm/config/service '@{AllowUnencrypted=""false""}'"
     }
     else {
         Write-Output "`nThe script terminated with errors, review the logfile for details"
