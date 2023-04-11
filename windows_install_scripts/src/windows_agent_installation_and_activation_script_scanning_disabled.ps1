@@ -17,7 +17,7 @@ $ActivationHeaders = @{
 $ActivationBody = @{
     "name" = $AgentName
     "endpoint" = $ApiEndpoint
-    "deny_all_interfaces"= true
+    "deny_all_interfaces"= $true
 } | ConvertTo-Json
 
 # Check if you have administrative privileges to run this script
@@ -36,7 +36,7 @@ $wc = New-Object System.Net.WebClient
 $wc.DownloadFile($AgentUrl, $WindowsAgentInstallerFile)
 
 # Installing the Domotz Agent
-Write-Host "Executiing installer $WindowsAgentInstallerFile working dir=$WindowsAgentInstallerDir"
+Write-Host "Executing installer $WindowsAgentInstallerFile working dir=$WindowsAgentInstallerDir"
 Start-Process -FilePath $WindowsAgentInstallerFile -WorkingDirectory $WindowsAgentInstallerDir -ArgumentList "/W /S /D=`"C:\Program Files (x86)\domotz\`""
 
 $IsInstalled = $false
