@@ -2,17 +2,18 @@
 # the NIC name has to be edited with yours - you can find it by using the issuing 'sudo ifconfig' or 'ip a'
 network:
     version: 2
+    renderer: networkd # Change it to NetworkManager if that is the case on your system.
     ethernets:
         ens160: # NIC name - to be changed (replace ens160 with your NIC name)
             dhcp6: false
             dhcp4: true
-            nameservers: 
+            nameservers:
                 addresses: [ "8.8.8.8", "1.1.1.1" ]
     vlans:
         vlan2:
             id: 2
             link: ens160 # change the NIC name also here
-            # change this 
+            # change this
             addresses: [ "192.168.2.250/24" ] # change with the right static ip address of the Domotz Agent on this VLAN followed by subnet mask in / format
         vlan6:
             id: 3
