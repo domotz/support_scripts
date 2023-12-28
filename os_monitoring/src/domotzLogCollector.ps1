@@ -35,7 +35,7 @@ function wo {
     )
     $Spacer = " -- "
     $TimeStamp = $(Get-Date -Format "yyyy-MM-dd_hh:mm:ss")    
-    Write-Output $($TimeStamp + $Spacer + $msg)
+    Write-Host $($TimeStamp + $Spacer + $msg)
 }
 function __HumanizeAccessMask($decimalValue) {
     # Define the permission values
@@ -70,55 +70,72 @@ function Get-WbemPermissions {
 
     $sd = Invoke-WmiMethod -Namespace root\cimv2 -path "__systemsecurity=@" -name GetSecurityDescriptor
     $dacl = $sd.descriptor | Select-Object -ExpandProperty dacl
-    [System.Collections.ArrayList]$AccessData = @()
-    foreach ($d in $dacl) {
-        $ado = [PSCustomObject] @{
-            trustee     = ($d.trustee).Domain + '\' + ($d.trustee).Name
-            Permissions = ( __HumanizeAccessMask($($d.AccessMask))) -join ";"
-            
-            AccessType  = $AceTypes[[int]$d.AceType]
-        }
-        $AccessData += $ado
-        $ado = $null
-    }
-    return $AccessData
+    $AccessData = @{}
 
+    foreach ($d in $dacl) {
+        $trustee = ($d.trustee).Domain + '\' + ($d.trustee).Name
+        $permissions = ( __HumanizeAccessMask($($d.AccessMask))) -join ";"
+        $accessType = $AceTypes[[int]$d.AceType]
+
+        if ($AccessData.ContainsKey($trustee)) {
+            # Update existing entry
+            $existingPermissions = $AccessData[$trustee].Permissions
+            if (-not $existingPermissions.Contains($permissions)) {
+                $AccessData[$trustee].Permissions += ";$permissions"
+            }
+        } else {
+            # Add new entry
+            $AccessData[$trustee] = [PSCustomObject] @{
+                trustee     = $trustee
+                Permissions = $permissions
+                AccessType  = $accessType
+            }
+        }
+    }
+
+    return $AccessData.Values
 }
 
-$dscriptver = "1"
+
+$dscriptver = "2"
+try {
+    Stop-Transcript -ErrorAction Stop | Out-Null
+}
+catch {}
+$LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
+$RootSDDL = Get-Item WSMan:\localhost\Service\RootSDDL | Select-Object -ExpandProperty Value
+$RegKeyPath = "HKLM:\Software\DomotzScripting\enableWinRm"
+$RegPropertyName = "LastLogFile"
+Start-Transcript -Path $LogFile
 $VersionBanner = "$($MyInvocation.MyCommand.Name) Version $dscriptver"
 $line = (0..$($VersionBanner.length / 2 )) | ForEach-Object { $line + "-" }
 Write-Host $line -ForegroundColor White -BackgroundColor Blue
 Write-Host "$VersionBanner " -ForegroundColor White -BackgroundColor Blue 
 Write-Host $line -ForegroundColor White -BackgroundColor Blue
 Write-Host ''
-try {
-    Stop-Transcript -ErrorAction Stop | Out-Null
-}
-catch {}
-$LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-MM-ss').log"
-$RootSDDL = Get-Item WSMan:\localhost\Service\RootSDDL | Select-Object -ExpandProperty Value
-$RegKeyPath = "HKLM:\Software\DomotzScripting\enableWinRm"
-$RegPropertyName = "LastLogFile"
-Start-Transcript -Path $LogFile
 wo "LogFile for this script is $LogFile"
-wo "Environment variables ------------------------------------------"
-Get-ChildItem ENV: | Where-Object { ($_.Name) -NotMatch "DOMOTZ_USER_PASS" }
-wo "WinRm service configuration ------------------------------------------"
-wo "   localhost"
-Get-ChildItem WSMan:\localhost | Format-Table  -AutoSize -Wrap
-wo "   Service"
-Get-ChildItem WSMan:\localhost\Service | Format-Table  -AutoSize -Wrap
-wo "   Auth"
-Get-ChildItem WSMan:\localhost\Service\Auth | Format-Table  -AutoSize -Wrap
-wo "   Listener"
-Get-ChildItem WSMan:\localhost\Listener | Select-Object -ExpandProperty Keys
-wo "   Shell"
-Get-ChildItem WSMan:\localhost\Shell | Format-Table  -AutoSize -Wrap
+try {
+    wo "Environment variables ------------------------------------------"
+    Get-ChildItem ENV: | Where-Object { ($_.Name) -NotMatch "DOMOTZ_USER_PASS" }
+    wo "WinRm service configuration ------------------------------------------"
+    wo "   localhost"
+    Get-ChildItem WSMan:\localhost -ErrorAction Stop | Format-Table  -AutoSize -Wrap 
+    wo "   Service"
+    Get-ChildItem WSMan:\localhost\Service -ErrorAction Stop | Format-Table  -AutoSize -Wrap
+    wo "   Auth"
+    Get-ChildItem WSMan:\localhost\Service\Auth -ErrorAction Stop | Format-Table  -AutoSize -Wrap
+    wo "   Listener"
+    Get-ChildItem WSMan:\localhost\Listener -ErrorAction Stop | Select-Object -ExpandProperty Keys
+    wo "   Shell"
+    Get-ChildItem WSMan:\localhost\Shell -ErrorAction Stop | Format-Table  -AutoSize -Wrap
+}
+catch {
+    wo "Error getting ENV or WSMan items: $_"
+}
 
 wo "WinRm service permissions ------------------------------------------"
 if ([int]$PSVer -ge 5) {
-    ConvertFrom-SddlString $RootSDDL
+    Write-Host $(ConvertFrom-SddlString $RootSDDL).DiscretionaryAcl
 }
 else {
     wo "Cannot translate sddl, PS version not suported, logging it raw"
