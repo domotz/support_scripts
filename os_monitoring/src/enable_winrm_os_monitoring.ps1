@@ -53,7 +53,7 @@
         or the commandline parameter 'Pass'. If none of those are present the password will be random and revealed on the console.
         The best option is to create the user before running the script so the password will not travel and will be known.
 #>
-
+#Requires -RunAsAdministrator
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param (
@@ -74,6 +74,32 @@ param (
     [ValidateSet("Domain", "Private")]
     [string]$NetworkProfile = "Private"
 )
+
+# Define the registry key path and value name
+function Write-LogLocation {
+    param (
+        [string]$LogFileFullPath
+    )
+    $regKeyPath = "HKLM:\Software\DomotzScripting\enableWinRm"
+    $PropertyName = "LastLogFile"
+
+    if (-not (Test-Path -Path $regKeyPath)) {
+        New-Item -Path $regKeyPath -Force
+    }
+
+    $ItemValue = Get-ItemProperty -Path $regKeyPath -Name $PropertyName -ErrorAction SilentlyContinue
+
+    if ($ItemValue) {
+
+        Set-ItemProperty -Path $regKeyPath -Name $PropertyName -Value $LogFileFullPath
+    }
+    else {
+
+        New-ItemProperty -Path $regKeyPath -Name $PropertyName -Value $LogFileFullPath -PropertyType String | Out-Null
+    }
+
+    
+}
 
 function Set-WMIAcl {
     # Excerpt from https://github.com/grbray/PowerShell/blob/main/Windows/Set-WMINameSpaceSecurity.ps1
@@ -105,7 +131,7 @@ function Set-WMIAcl {
         $AccountName = $Account.Split('\')[1]
     }
     elseif ($Account.Contains('@')) {
-        $Somain = $Account.Split('@')[1].Split('.')[0]
+        $Domain = $Account.Split('@')[1].Split('.')[0]
         $AccountName = $Account.Split('@')[0]
     }
     else {
@@ -115,7 +141,7 @@ function Set-WMIAcl {
 
     $GetParams = @{Class = "Win32_Account" ; Filter = "Domain='$Domain' and Name='$AccountName'" }
     $Win32Account = Get-WmiObject @GetParams
-    if ($Win32Account -eq $null) { throw "Account was not found: $Account" }
+    if ($null -eq $Win32Account) { throw "Account was not found: $Account" }
    
     $ACE = (New-Object System.Management.ManagementClass("Win32_Ace")).CreateInstance()
     $ACE.AccessMask = $WBEM_METHOD_EXECUTE + $WBEM_REMOTE_ACCESS
@@ -129,7 +155,8 @@ function Set-WMIAcl {
 
     $ACE.AceType = $ACCESS_ALLOWED_ACE_TYPE
     $ACL.DACL += $ACE
-
+    $parameters = @{Name = "SetSecurityDescriptor"; ArgumentList = $ACL } + $InvokeParams
+    $parameters 
     $SetParams = @{Name = "SetSecurityDescriptor"; ArgumentList = $ACL } + $InvokeParams
 
     $output = Invoke-WmiMethod @SetParams
@@ -236,74 +263,75 @@ function Find-Group {
         [string]$DomainName
     )
     $ret = @{
-        RC  = $true
-        Msg = ""
+        RC           = $true
+        Msg          = ""
+        GroupIsLocal = $false
+        GroupSID     = $null  
     }
     # Checking the group, we assume is a domain one only if the name is provided as 'Domain\Groupname', if the group is in the domain we assume we have a domain user
     [System.Collections.ArrayList]$MemberList = @()
     if ([bool]$DomainName) {
-        # check if the domain is valid
-        $ADSearcher = New-Object DirectoryServices.DirectorySearcher("(&(objectCategory=group)(sAMAccountName=$GroupName))")
-        $Results = $ADSearcher.FindOne()
-        if (![string]::IsNullOrEmpty($Results)) {
-            foreach ($r in $Results.Properties["Member"] ) {
-                $MemberList += $(([ADSI]"LDAP://$r").sAMAccountName )
+        try {
+            $ADSearcher = New-Object DirectoryServices.DirectorySearcher("(&(objectCategory=group)(sAMAccountName=$GroupName))")
+            $SavedEA = $ErrorActionPreference
+            $ErrorActionPreference = 'Stop'
+            $Results = try {
+                $ADSearcher.FindOne()
             }
-            if ($MemberList -contains $UserName) {
+            catch {
+                Write-Host "ERROR querying AD: $_"
+            }
+            $ErrorActionPreference = $SavedEA
 
-                $ret.Msg += "User $Username is member of group $Groupname"
+            if (![string]::IsNullOrEmpty($Results)) {
+                # Get the group SID
+                $groupSID = New-Object System.Security.Principal.SecurityIdentifier($Results.Properties["objectSid"][0], 0)
+                $ret.GroupSID = $groupSID.Value  # Store the Group SID
+
+                foreach ($r in $Results.Properties["Member"] ) {
+                    $MemberList += $(([ADSI]"LDAP://$r").sAMAccountName )
+                }
+                if ($MemberList -contains $UserName) {
+                    $ret.Msg += "User $Username is member of group $Groupname. Group SID: $($ret.GroupSID)"
+                }
+                else {
+                    $ret.Msg += "User $Username is not member of group $Groupname. Group SID: $($ret.GroupSID) `n Aborting..."
+                    $ret.RC = $false
+                }
             }
             else {
-                $ret.Msg += "User $Username is not member of group $Groupname `n Aborting..."
+                $ret.Msg += "Group $Groupname not found in AD `n Aborting..."
                 $ret.RC = $false
             }
         }
-        else {
-            $ret.Msg += "Group $Groupname not found in AD `n Aborting..."
+        catch {
+            Write-Host "ERROR searching AD, make sure the logged in user is a domain member" -ForegroundColor Red -BackgroundColor Black
             $ret.RC = $false
-
         }
-   
- 
     }
     else {
         $ret.Msg += "Group $Groupname is local"
-    
-        try { 
-            Get-LocalGroup $GroupName -Erroraction Stop 
-        }
-        catch { 
-            $ret.Msg += "Group $GrouName not found, creating it locally"
-            New-LocalGroup -Name $GroupName -Description "Group for Domotz user" | Out-Null
-        }
-
+        $ret.GroupIsLocal = $true
     }
     
     return $ret
 }
+
 function Find-User {
 
     param (
         [string]$UserName,
-        [string]$Pass,
         [string]$DomainName
     )
     
     $ret = @{
-        RC        = $true
-        Msg       = ""
-        RandomPwd = $false
-        Password  = ""
+        RC          = $true
+        Msg         = ""
+        UserIsLocal = $false
     }
 
 
-    if ([string]::IsNullOrEmpty($Pass)) {
-        Add-Type -AssemblyName System.Web
-        $Pass = $ret.Password = ([System.Web.Security.Membership]::GeneratePassword(24, 3)) 
-        $ret.RandomPwd = $true
-    }
 
-    [securestring]$Pass = $($Pass | ConvertTo-SecureString -AsPlainText -Force)
     # Checking the user, we aasume is a domain one only if the name is provided as 'Domain\Username'
     # Setting up the WinRM configuration
 
@@ -320,83 +348,145 @@ function Find-User {
             $ret.Msg += "Aborting...`n" 
             $ret.RC = $false
         }
-        $ret.RandomPwd = $false
-        
+       
     }
     else {
-        
-        try { 
-            Get-LocalUser $UserName -Erroraction Stop 
-        }
-        catch { 
-            $ret.Msg += "User $UserName does not exist, let's create it"
-
-            try {
-                New-LocalUser $UserName -Password $Pass -Description "Domotz user agent" -ea Stop
-            }
-            catch {
-                $ret.Msg += "$($_.exception.message) Aborting..."
-                $ret.RC = $false
-            }
-        }
+        $ret.Msg += "User $UserName does not exist"
+        $ret.UserIsLocal = $true
     }
     return $ret
 }
 
+function __ManageLocalUserAndGroup {
+    param (
+  
+        [string]$Username,
+        [string]$GroupName,
+        [string]$Password,
+        [ValidateSet("User", "Group", "All")]
+        [string]$Op
+    )
+
+    $cmd = "$ENV:Windir\System32\net.exe"
+    if (($op -eq "All") -or ($op -eq "User")) {
+        # Check if the user exists
+        $process = Start-Process -FilePath $cmd -ArgumentList "user $Username "-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL
+        $userNotFound = $process.ExitCode 
+
+        if ($userNotFound) {
+            # Create the user if it doesn't exist
+            Write-Host  "User $UserName does not exist, trying to create it..."
+            $createUserProcess = Start-Process -FilePath $cmd -ArgumentList "user $Username $Password /add /Y "-PassThru  -NoNewWindow -Wait  -RedirectStandardError NUL
+            if ($createUserProcess.ExitCode -ne 0) {
+                write-host "Start-Process -FilePath $cmd -ArgumentList "user $Username $Password /add /Y "-PassThru  -NoNewWindow -Wait  -RedirectStandardError NUL"
+                return 1  # Error creating user
+            }
+        }
+    }
+
+    if (($op -eq "All") -or ($op -eq "Group")) {
+        # Check if the group exists
+        $process = Start-Process -FilePath $cmd -ArgumentList "localgroup $GroupName"-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL 
+        $groupNotFound = $process.ExitCode -ne 0
+
+        if ($groupNotFound) {
+            # Create the group if it doesn't exist
+            Write-Host  "Group $GroupName does not exist, trying to create it..."
+            $createGroupProcess = Start-Process -FilePath $cmd -ArgumentList "localgroup $GroupName /add /Y  "-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL 
+            if ($createGroupProcess.ExitCode -ne 0) {
+                return 2  # Error creating group
+            }
+        }
+
+        # Check if the user is a member of the group
+        $isMember = (net localgroup $GroupName | Select-String $Username -Quiet)
+
+        if (-not $isMember) {
+            # Add the user to the group if they are not a member
+            Write-Host  "Adding user $UserName to group $GroupName"
+            $addUserToGroupProcess = Start-Process -FilePath $cmd -ArgumentList "localgroup $GroupName $Username /add /Y  "-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL 
+            if ($addUserToGroupProcess.ExitCode -ne 0) {
+                Write-Host "Error adding user to group"
+                return 3  # Error adding user to group
+            }
+        }
+    }
+    return 0  # Success
+} 
 function Set-WinRmConfig {
     $RC = [pscustomobject] @{
         output = ''
         result = $false
         
     }
+    $local:ErrorActionPreference = 'Stop'
     Write-Host "-> Setting up WINRM service"-ForegroundColor Green -BackgroundColor Black
-    # Set network profile
-    $Profiles = Get-NetConnectionProfile
-    foreach ($p in $Profiles) {
-        if ($($p.NetworkCategory) -eq "Public") {
-            Write-Host "Setting network profile for interface $($p.InterfaceAlias)"
-            Set-NetConnectionProfile -NetworkCategory $NetworkProfile
+    Write-Host "Setting network profile"
+    try {
+        $Profiles = Get-NetConnectionProfile
+        foreach ($p in $Profiles) {
+            if ($($p.NetworkCategory) -eq "Public") {
+                Write-Host "Setting network profile for interface $($p.InterfaceAlias)"
+                Set-NetConnectionProfile -NetworkCategory $NetworkProfile 
+            }
         }
     }
-    if ((Get-Service WinRM).Status -ne "Running") {
-
-        Enable-PSRemoting -Force
+    catch {
+        Write-Host "Error setting network profile"
+        Write-Host "Details: $_"
+        return $RC.result
     }
+            
+    try {
+        if ((Get-Service WinRM).Status -ne "Running") {
+
+            Enable-PSRemoting -Force
+        }
+        
+        Write-Host "Setting AllowUnencrypted to true"
+        winrm set winrm/config/service '@{AllowUnencrypted="true"}' | Out-Null
+        [xml]$WinRmConfig = winrm get winrm/config/service -format:pretty
     
-    Write-Host "Setting AllowUnencrypted to true"
-    winrm set winrm/config/service '@{AllowUnencrypted="true"}' | Out-Null
-    [xml]$WinRmConfig = winrm get winrm/config/service -format:pretty
+        if (([string]::IsNullOrEmpty($WinRmConfig.Service.AllowUnencrypted.Source))) {
+            $AllowUnencrypted = ($WinRmConfig.Service.AllowUnencrypted)
+        }
+        else {
+            $AllowUnencrypted = ($WinRmConfig.Service.AllowUnencrypted.'#text')
+        }
+     
+        if (($AllowUnencrypted -eq "true")) {
+            $RC.result = $true
+        }
+        $RC.output = winrm get winrm/config/service
+        return $RC
+        
+    }
+    catch {
+        Write-Host "Error setting WinRm"
+        Write-Host "Details: $_"
+        return $RC.result
+    }
 
-    if (([string]::IsNullOrEmpty($WinRmConfig.Service.AllowUnencrypted.Source))) {
-        $AllowUnencrypted = ($WinRmConfig.Service.AllowUnencrypted)
-    }
-    else {
-        $AllowUnencrypted = ($WinRmConfig.Service.AllowUnencrypted.'#text')
-    }
- 
-    if (($AllowUnencrypted -eq "true")) {
-        $RC.result = $true
-    }
-    $RC.output = winrm get winrm/config/service
-    return $RC
     
 }
 
+function __getpassword {
+    Add-Type -AssemblyName System.Web
+    $P = ([System.Web.Security.Membership]::GeneratePassword(24, 3))
+    $securePassword = ConvertTo-SecureString -String $P -AsPlainText -Force
+    return $securePassword
+}
+
 #-------------------------------------------------------------------------------
-$dscriptver = "0.5"
+$dscriptver = "0.9"
 $VersionBanner = "$($MyInvocation.MyCommand.Name) Version $dscriptver"
 $line = (0..$($VersionBanner.length / 2 )) | ForEach-Object { $line + "-" }
-Write-Host $line -ForegroundColor Blue -BackgroundColor White
-Write-Host "$VersionBanner " -ForegroundColor Blue -BackgroundColor White 
-Write-Host $line -ForegroundColor Blue -BackgroundColor White
+Write-Host $line -ForegroundColor White -BackgroundColor Blue
+Write-Host "$VersionBanner " -ForegroundColor White -BackgroundColor Blue 
+Write-Host $line -ForegroundColor White -BackgroundColor Blue
 Write-Host ''
-$LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-MM-ss').log"
-$RC = 0
-Start-Transcript -Path $LogFile
-Write-Output "Starting at $(Get-Date)"
-Write-Output "Log file is $Logfile"
 # Motd
-Write-Output "
+Write-Host "
 +------------------------------------------------+
 |  ___                             _             |
 | (  _'\                          ( )_           |
@@ -407,24 +497,39 @@ Write-Output "
 | ---------------------------------------------- |
 | The RMM tool for Networks and Connected Devices|
 +------------------------------------------------+
-"
-Write-Output "This utility will enable WINRM on Microsoft Windows to unlock the Domotz OS Monitoring feature.  (ver. $dscriptver)"
+" 
+try {
+    Stop-Transcript -ErrorAction Stop | Out-Null
+}
+catch {}
 
-# Check if you have administrative privileges to run this script
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
-            [Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    Write-Warning "Insufficient permissions to run this utility. You should run this with administrative privileges."
-    return 1
+$LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
+$RC = 0
+Start-Transcript -Path $LogFile
+Write-Output "Starting at $(Get-Date)"
+Write-Output "Log file is $Logfile"
+Write-Output "`n`n`nParameters as provided --------------------"
+foreach ($paramName in $PSBoundParameters.Keys) {
+    $paramValue = $PSBoundParameters[$paramName]
+    if ($paramName -ne "Pass") {
+        Write-Host "Parameter Name: $paramName, Parameter Value: $paramValue "
+        Write-Host "-"
+    }
 }
-else {
-    Write-Information "Code is running as administrator - nice to hear that!"
-}
+Write-Output "Environment --------------------"
+Write-Output $(Get-ChildItem ENV: | Where-Object { ($_.Name) -NotMatch "DOMOTZ_USER_PASS" })
+Write-Output "Log file is $Logfile"
+Write-LogLocation $Logfile
+
+Write-Output "This utility will enable WINRM on Microsoft Windows to unlock the Domotz OS Monitoring feature.  (ver. $dscriptver)"
+Write-Output "Configuring WinRM"
+
 $WinRMConfig = Set-WinRmConfig
 $WinRMConfig.output
 if ($($WinRMConfig.result)) {
     # Sanitize username and groupname if we are on a domain controller
     if ([bool](Get-SmbShare -Name SYSVOL -ea SilentlyContinue)) {
-        Write-Output "The computer is a domain controller, assuming group and user are in AD..."
+        Write-Host "The computer is a domain controller, assuming group and user are in AD..."
         $NetBIOSName = (Get-ADDomain).NetBIOSName
         if (!($UserName.Contains("\"))) {
             $UserName = "$NetBIOSName\$UserName"
@@ -434,8 +539,6 @@ if ($($WinRMConfig.result)) {
         }
 
     }
-    Write-Output "User: $UserName"
-    Write-Output "Group: $GroupName"
 
     if ($UserName.Contains("\")) { 
         $UserDomain , $UserSamActName = $UserName.Split("\")
@@ -454,52 +557,106 @@ if ($($WinRMConfig.result)) {
         $GroupSamActName = $GroupName
 
     }
-
+    $ComputerDomain = try {
+        (Get-WmiObject Win32_NTDomain).DomainName
+    }
+    catch {
+        Write-Host "ERROR getting computer domain: $_"
+        return $false
+    }
+    Write-Host "User Domain is: $UserDomain"
+    Write-Host "Computer Domain is $ComputerDomain"
     if ([bool]$UserDomain) {
-        if ((Get-WmiObject Win32_NTDomain).DomainName -ne $UserDomain) {
+        if ((Get-WmiObject Win32_NTDomain).DomainName -notcontains $UserDomain) {
             Write-Warning "The computer is not joint to domain $UserDomain, user and group must be local or belong to the same domain `nAborting..."
-            return 1
+            return $false
         }
     }
 
     if ([bool]$GroupDomain) {
-        if ((Get-WmiObject Win32_NTDomain).DomainName -ne $GroupDomain) {
-            Write-Warning "The computer is not joint to domain $GroupDomain `nAborting..."
-            return 1
+        if ((Get-WmiObject Win32_NTDomain).DomainName -notcontains $GroupDomain) {
+            Write-Warning "The computer is not joint to domain $GroupDomain specified in the GroupName parameter `nAborting..."
+            return $false
         }
-        Write-Warning "$GroupName is a domain group, assuming the user is in the same domain"
+        Write-Warning "$GroupName is a domain group, assuming the user is in the same domain, password parameter is ignored"
+       
         $UserDomain = $GroupDomain
         $UserName = "$UserDomain\$UserSamActName"
+
     }
 
+    Write-Host "processing user $Username and group $GroupName" -ForegroundColor Green -BackgroundColor Black
 
-    $Fuser = (Find-User -UserName $UserSamActName -DomainName $UserDomain -Pass $Pass)
-    Write-Output $Fuser.Msg
-
+    $Fuser = (Find-User -UserName $UserSamActName -DomainName $UserDomain)
+    Write-Host $Fuser.Msg
+ 
     if (($RC = $Fuser.RC)) {
         $FGroup = Find-Group -UserName $UserSamActName -GroupName $GroupSamActName -DomainName $GroupDomain
-        Write-Output $FGroup.Msg
+        Write-Host $FGroup.Msg
         if (($RC = $Fgroup.RC)) {
+            # if we have a localgroup we try to add it to the group
+            if ($FGroup.GroupIsLocal ) {
+ 
+                if (!$Fuser.UserIsLocal) {
 
-            # if we have a localgroup we try to add the user to it
-            if (![bool]$GroupDomain) {
-                if (!(Get-LocalGroupMember -Group $GroupName -member $UserName -EA SilentlyContinue)) {
-                    try { 
-                        Write-Output "Adding $UserName to group $GroupName"
-                        Add-LocalGroupMember -Group $GroupName -Member $UserName -Erroraction Stop 
+                    # Skip user checking and local creation
+                    $op = "Group"
+                }
+                else {
+                    $op = "All"
+                }
+                if ([string]::IsNullOrEmpty($Pass)) { 
+                    [System.Security.SecureString]$securePass = __getpassword
+                
+                    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
+                    try {
+                        $NewPass = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($BSTR)
+   
+                    } 
+                    catch {
+                        Write-Host "Error occurred: $_" -ForegroundColor Cyan -BackgroundColor Black
                     }
-                    catch { 
-                        Write-Warning "$($_.exception.message) Aborting..."
-                        return 1
+                    finally {
+                        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
                     }
                 }
+                
+
+                $NetCmdRetCode = __ManageLocalUserAndGroup -Username $UserName -GroupName $GroupName -Password $NewPass -Op $op
+                switch ($NetCmdRetCode) {
+                    0 { "Local user and group operations completed successfully"; break }
+                    1 { "Error creating user $UserName" ; break }
+                    2 { "Error creating group $GroupName"; break }
+                    3 { "Error addin user $UserName to group $GroupName"; break }
+                    Default { "Unknown error" }
+                }
+
+                try {
+                    $localGroup = [ADSI]("WinNT://$env:COMPUTERNAME/$GroupName,group")
+                    $localGroupSID = New-Object System.Security.Principal.SecurityIdentifier($localGroup.objectsid[0], 0)
+                    Write-Host "Local Group SID: $($localGroupSID.Value)"
+                }
+
+                catch {
+                    Write-Host "Error retrieving Local Group SID: $_"
+                }
+
+                if ($NetCmdRetCode -ne 0) {
+                    return $false
+                }
             }
-            Write-Output "-> Restarting WINRM service"
+            else {
+                Write-Host "AD Group SID $($FGroup.GroupSID)"
+            }
+        
+
+            Write-Host "-> Restarting WINRM service"
             Stop-Service WinRM | Out-Null
             $MaxWait = 30
             $WmiRestartMsg = $null
             $k = 0
-            Write-Output "--> Stopping service"
+            Write-Host "--> Stopping service"
             do {
                 Start-Sleep -Seconds 1
                 Write-Host '.' -NoNewline
@@ -514,8 +671,28 @@ if ($($WinRMConfig.result)) {
             }
             else {
                 try {
-                    Write-Output "--> Starting service"
+                    Write-Host "--> Starting service"
                     Start-Service winrm -ea Stop
+                
+                    $startTime = Get-Date
+                    $timeout = 60 # 60 seconds timeout
+                    $serviceRunning = $false
+                
+                    while ((Get-Date) -lt $startTime.AddSeconds($timeout)) {
+                        $service = Get-Service winrm
+                        if ($service.Status -eq 'Running') {
+                            Write-Host "Service winrm is running."
+                            $serviceRunning = $true
+                            break
+                        }
+                        else {
+                            Start-Sleep -Seconds 1
+                        }
+                    }
+                
+                    if (-not $serviceRunning) {
+                        throw "Service winrm did not start within the expected time."
+                    }
                 }
                 catch {
                     $WmiRestartMsg = "Error starting winrm, please investigate and restart"
@@ -525,22 +702,15 @@ if ($($WinRMConfig.result)) {
         
             # Windows needs some time to think about what we just did
         
-        (1..30) | ForEach-Object {
-                Write-Host '.' -NoNewline
-                Start-Sleep 1    
-            }
-            Write-Host ''
-            Write-Output "-> Granting WinRM permissions to group $GroupName"
+            Write-Host "-> Granting WinRM permissions to group $GroupName"
             Add-WinRMDaclRule -Account $GroupName -WhatIf:([bool]$WhatIfPreference.IsPresent) -Confirm:([bool]$ConfirmPreference.IsPresent)
-            Write-Output "-> Granting WMI permissions to $GroupName..."
+            Write-Host "-> Granting WMI permissions to $GroupName..."
             Set-WMIAcl -Account $GroupName
-        
-            if ($Fuser.RandomPwd) {
-
+            if ([string]::IsNullOrEmpty($Pass) -and $Fuser.UserIsLocal) {
                 Stop-Transcript | Out-Null
                 Write-Warning "#################### THIS IS THE GENERATED PASSWORD FOR THE NEW USER, PLEASE TAKE NOTE SINCE IT'S NOT SAVED ANYWHERE`n`n"
-                Write-Host $Fuser.Password
-                Write-Output "`n`n"
+                $NewPass
+                Write-Host "`n`n"
                 Start-Transcript -Path $LogFile -Append | Out-Null
             
             }
@@ -549,21 +719,22 @@ if ($($WinRMConfig.result)) {
     }
 
     if ($RC) {
-        Write-Output "`n########## The script completed successfully ##########"
-        Write-Output "Run 'winrm configsddl default' to verify the group has the required permissions"
+        Write-Host "`n########## The script completed successfully ##########"
+        Write-Host "Run 'winrm configsddl default' to verify the group has the required permissions"
         if ($WmiRestartMsg) {
-            Write-Output $WmiRestartMsg 
+            Write-Host $WmiRestartMsg 
         }
         Write-Warning "We have configured WinRM to allow unencrypted authentication, if you want to rollback run the following commands:"
-        Write-Output "winrm set winrm/config/service '@{AllowUnencrypted=""false""}'"
+        Write-Host "winrm set winrm/config/service '@{AllowUnencrypted=""false""}'"
     }
     else {
-        Write-Output "`nThe script terminated with errors, review the logfile for details"
+        Write-Host "`nThe script terminated with errors, review the logfile for details"
     }
 }
 else {
-    Write-Output "couldn't configure WMI, aborting"
+    Write-Host "couldn't configure WMI, aborting"
     $RC = $false
 }
+
 Stop-Transcript -ErrorAction SilentlyContinue 
 return [int](!$RC) #I want to return 0 if the ret code is $true
