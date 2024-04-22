@@ -48,7 +48,11 @@ checks if the group exists locally since no domain is provided
 add the user to the local group and grant the group permissions on the default WinRM listener
  
 
+-------------------------- EXAMPLE 5 --------------------------
 
+.\enable_winrm_os_monitoring.ps1 -GroupName adlab\domotzwinrm -WmiAccessOnly -Namespaces "Root\Microsoft\Windows\Storage"
+
+Add WMI permissions to adlab\domotzwinrm group on namespace "Root\Microsoft\Windows\Storage"
 
 
 TROUBLESHOOTING
