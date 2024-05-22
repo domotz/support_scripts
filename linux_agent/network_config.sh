@@ -4,6 +4,13 @@
 # - Configures network interfaces on a Linux host using netplan
 
 ver="1.0"
+
+# Check if the script is run as root
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root"
+    exit 1
+fi
+
 echo "+----------------------------------------------------------+"
 echo "|         ___                             _                |"
 echo "|        (  _'\                          ( )_              |"
