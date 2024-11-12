@@ -1,4 +1,4 @@
-var fast =  require('C:\\Program Files (x86)\\domotz\\lib\\node_modules\\domotz-remote-pawn\\src\\network_tools\\fast');
+var fast =  require('C:\\Program Files (x86)\\domotz\\lib\\node_modules\\domotz-remote-pawn-ng\\src\\network_tools\\fast');
 
 function test() {
     var onProgress = function (progress) {
