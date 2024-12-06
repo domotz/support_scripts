@@ -25,6 +25,11 @@
 # Note: Ensure that all dependencies are installed before running the script.
 #       If issues persist, check internet connectivity and the validity of the REPO_URL.
 # 
+# ChangeLog
+# 1.0 -- Created on 6 Dec 2024
+ver=1.0
+set -euo pipefail
+
 echo "+------------------------------------------------+"
 echo "|  ___                             _             |"
 echo "| (  _'\                          ( )_           |"
@@ -36,11 +41,11 @@ echo "| ---------------------------------------------- |"
 echo "| The IT Monitoring and Management Solition      |"
 echo "+------------------------------------------------+"
 echo "=================================================="
-echo "Domotz Script to download updated scripts to "
+echo "Domotz Script ${ver} to download updated scripts to "
 echo "configure a Protecli for Domotz Monitoring"
 echo "=================================================="
+read -p "Please press Enter to continue: "
 
-set -euo pipefail
 
 # Global variables
 REPO_URL="https://github.com/domotz/support_scripts/raw/refs/heads/develop/linux_agent/domotz_protecli_scripts_latest.tar.gz"
