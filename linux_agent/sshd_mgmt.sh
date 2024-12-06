@@ -1,17 +1,26 @@
 #!/bin/bash
-# Description: This script enables or disables the SSH service on an Ubuntu 22.04 system.
+# 
+# Script Name: manage_ssh.sh
+# Description: This script enables or disables the SSH service on a Protecli Domotz system.
 #              It ensures proper management of the SSH service via systemd and updates 
 #              the UFW firewall rules to allow or deny SSH connections accordingly.
 # 
 # Usage:       ./manage_ssh.sh <enable|disable>
 #              - "enable"  : Starts and enables the SSH service, and allows SSH in the UFW firewall.
-#              - "disable" : Stops and disables the SSH service, and removes SSH allowance from the firewall.
+#              - "disable" : Disables the SSH service, removes SSH allowance from the firewall, 
+#                            and shows a message to manually stop the service if necessary.
 # 
 # Requirements:
-#              - Ubuntu 22.04 or a compatible system
+#              - Protecli Domotz or a compatible system
 #              - sudo privileges
 #              - systemd for service management
 #              - UFW (Uncomplicated Firewall) installed and configured
+# 
+# 
+# Note: Ensure this script is executed with the correct permissions and 
+#       that the UFW firewall is active on the system.
+# 
+
 set -euo pipefail
 
 # Functions to validate dependencies
@@ -27,9 +36,9 @@ validate_dependencies() {
 
 # Function to enable SSH service
 enable_ssh() {
-    printf "Enabling SSH service...\n"
-    if ! sudo systemctl start ssh && sudo systemctl enable ssh; then
-        printf "Error: Failed to enable SSH service.\n" >&2
+    printf "Enabling and starting SSH service...\n"
+    if ! sudo systemctl enable --now ssh; then
+        printf "Error: Failed to enable and start SSH service.\n" >&2
         return 1
     fi
 
@@ -39,13 +48,13 @@ enable_ssh() {
         return 1
     fi
 
-    printf "SSH service has been enabled, and firewall updated.\n"
+    printf "SSH service has been enabled, started, and firewall updated.\n"
 }
 
 # Function to disable SSH service
 disable_ssh() {
     printf "Disabling SSH service...\n"
-    if ! sudo systemctl stop ssh && sudo systemctl disable ssh; then
+    if ! sudo systemctl disable ssh; then
         printf "Error: Failed to disable SSH service.\n" >&2
         return 1
     fi
@@ -56,7 +65,9 @@ disable_ssh() {
         return 1
     fi
 
-    printf "SSH service has been disabled, and firewall updated.\n"
+    printf "SSH service has been disabled and firewall updated.\n"
+    printf "Note: The SSH service has not been stopped not you kick you out of the shell if remoting. To stop it manually, run:\n"
+    printf "      sudo systemctl stop ssh\n"
 }
 
 # Main function
