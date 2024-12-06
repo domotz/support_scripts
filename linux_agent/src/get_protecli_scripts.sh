@@ -67,7 +67,7 @@ download_file() {
     local output_path="$output_dir/$filename"
 
     printf "Downloading file from %s...\n" "$url" >&2
-    if ! curl -fSL "$url" -o "$output_path"; then
+    if ! wget -q -O "$output_path" "$url"; then
         printf "Error: Failed to download file from %s\n" "$url" >&2
         return 1
     fi
@@ -79,6 +79,7 @@ download_file() {
 
     printf "%s\n" "$output_path"  # Return only the file path
 }
+
 
 # Function to remove existing directory
 remove_old_directory() {
