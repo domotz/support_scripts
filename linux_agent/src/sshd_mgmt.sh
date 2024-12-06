@@ -1,26 +1,23 @@
 #!/bin/bash
-# 
-# Script Name: manage_ssh.sh
 # Description: This script enables or disables the SSH service on a Protecli Domotz system.
-#              It ensures proper management of the SSH service via systemd and updates 
+#              It ensures proper management of the SSH service via systemd and updates
 #              the UFW firewall rules to allow or deny SSH connections accordingly.
-# 
+#
 # Usage:       ./manage_ssh.sh <enable|disable>
 #              - "enable"  : Starts and enables the SSH service, and allows SSH in the UFW firewall.
-#              - "disable" : Disables the SSH service, removes SSH allowance from the firewall, 
+#              - "disable" : Disables the SSH service, removes SSH allowance from the firewall,
 #                            and shows a message to manually stop the service if necessary.
-# 
+#
 # Requirements:
 #              - Protecli Domotz or a compatible system
 #              - sudo privileges
 #              - systemd for service management
 #              - UFW (Uncomplicated Firewall) installed and configured
-# 
-# 
-# Note: Ensure this script is executed with the correct permissions and 
+#
+#
+# Note: Ensure this script is executed with the correct permissions and
 #       that the UFW firewall is active on the system.
-# 
-
+#
 set -euo pipefail
 
 # Functions to validate dependencies

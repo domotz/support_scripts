@@ -19,19 +19,20 @@ PAPIUS="443"
 RBTUS="messaging-us-east-1-cell-1.domotz.com"
 PRBTUS="5671"
 
-echo "+------------------------------------------------+
-|  ___                             _             |
-| (  _'\                          ( )_           |
-| | | ) |   _     ___ ___     _   | ,_) ____     |
-| | | | ) /'_'\ /' _ ' _ '\ /'_'\ | |  (_  ,)    |
-| | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_     |
-| (____/''\___/'(_) (_) (_)'\___/''\__)(____)    |
-| ---------------------------------------------- |
-| The RMM tool for Networks and Connected Devices|
-+------------------------------------------------+
+echo "+------------------------------------------------+"
+echo "|  ___                             _             |"
+echo "| (  _'\                          ( )_           |"
+echo "| | | ) |   _     ___ ___     _   | ,_) ____     |"
+echo "| | | | ) /'_'\ /' _ ' _ '\ /'_'\ | |  (_  ,)    |"
+echo "| | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_     |"
+echo "| (____/''\___/'(_) (_) (_)'\___/''\__)(____)    |"
+echo "| ---------------------------------------------- |"
+echo "| The IT Monitoring and Management Solition      |"
+echo "+------------------------------------------------+"
+echo "=================================================="
 
-This script check that the connection to the Domotz Cloud is reliable
-"
+echo "This script checks that the connection to the Domotz Cloud is reliable"
+echo ""
 
 echo "In which area is your Domotz Agent located?"
 PS3='Please enter 1,2,3 or 4:'
