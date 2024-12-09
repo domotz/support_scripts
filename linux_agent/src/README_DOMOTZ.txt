@@ -1,3 +1,3 @@
-To get your setup updated script for your Protecli Domotz please run the command:
+To get your setup updated script for your Protectli Domotz please run the command:
 
-bash get_protecli_scripts.sh
+bash get_protectli_scripts.sh

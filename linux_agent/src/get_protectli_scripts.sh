@@ -1,6 +1,6 @@
 #!/bin/bash
 # Description: This script downloads and extracts the latest Domotz configuration scripts
-#              for setting up a Protecli Domotz system for Domotz monitoring.
+#              for setting up a Protectli Domotz system for Domotz monitoring.
 #
 # Features:
 # - Downloads the latest Domotz scripts as a compressed archive from a GitHub repository.
@@ -42,15 +42,15 @@ echo "| The IT Monitoring and Management Solition      |"
 echo "+------------------------------------------------+"
 echo "=================================================="
 echo "Domotz Script ${ver} to download updated scripts to "
-echo "configure a Protecli for Domotz Monitoring"
+echo "configure a Protectli for Domotz Monitoring"
 echo "=================================================="
 read -p "Please press Enter to continue: "
 
 
 # Global variables
-REPO_URL="https://github.com/domotz/support_scripts/raw/refs/heads/develop/linux_agent/domotz_protecli_scripts_latest.tar.gz"
+REPO_URL="https://github.com/domotz/support_scripts/raw/refs/heads/develop/linux_agent/domotz_protectli_scripts_latest.tar.gz"
 TEMP_DIR="/tmp/domotz_download"
-EXTRACTED_DIR_NAME="domotz_protecli_scripts_latest"
+EXTRACTED_DIR_NAME="domotz_protectli_scripts_latest"
 
 # Function to validate dependencies
 validate_dependencies() {
