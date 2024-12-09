@@ -48,7 +48,7 @@ read -p "Please press Enter to continue: "
 
 
 # Global variables
-REPO_URL="https://github.com/domotz/support_scripts/raw/refs/heads/develop/linux_agent/domotz_protectli_scripts_latest.tar.gz"
+REPO_URL="https://github.com/domotz/support_scripts/raw/refs/heads/main/linux_agent/domotz_protectli_scripts_latest.tar.gz"
 TEMP_DIR="/tmp/domotz_download"
 EXTRACTED_DIR_NAME="domotz_protectli_scripts_latest"
 
