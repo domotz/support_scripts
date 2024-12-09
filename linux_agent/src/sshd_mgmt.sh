@@ -3,7 +3,7 @@
 #              It ensures proper management of the SSH service via systemd and updates
 #              the UFW firewall rules to allow or deny SSH connections accordingly.
 #
-# Usage:       ./manage_ssh.sh <enable|disable>
+# Usage:       ./ssh_mgmt.sh <enable|disable>
 #              - "enable"  : Starts and enables the SSH service, and allows SSH in the UFW firewall.
 #              - "disable" : Disables the SSH service, removes SSH allowance from the firewall,
 #                            and shows a message to manually stop the service if necessary.
