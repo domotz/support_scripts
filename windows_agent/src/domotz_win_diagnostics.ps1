@@ -8,7 +8,35 @@
 # - checks for Domotz Cloud connectivity (outgoing)
 # - perform a test with the selected Speedtest - if enabled -
 # TODO -- add progression messages for each check/task made.
-$dscriptver="1.0"
+# TODO -- review and fix the commented out sections
+$dscriptver="1.1"
+# Changelog
+# v1.1 added various sections and when passed to node 20 - renamed domotz-remote-pawn dir into domotz-remote-pawn-ng 
+
+
+# Check if you have administrative privileges to run this script
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
+[Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Warning "Insufficient permissions to run this utility. You should run this with administrative privileges."
+    Read-Host -Prompt "please press ENTER or CTRL+C to quit"
+    break
+}
+else {
+    Write-Information "Code is running as administrator - nice to hear that!"
+}
+
+# Check if requirements are met (OS version, Ps version)
+$os = Get-CimInstance Win32_OperatingSystem
+if ($os.Version -ge 10.0) {
+    Write-Host "OS version check --> Passed..."
+}
+else {
+    $osVerCaption = (Get-WMIObject win32_operatingsystem) | Select-Object -Expandproperty Caption
+    Write-Warning "Your OS version: ----->  $osVerCaption $osVer <------ is not supported by this script. SSH server should be installed manually."
+    break
+}
+
+
 
 # Motd
 Write-Host "
@@ -20,7 +48,7 @@ Write-Host "
 | | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_     |
 | (____/''\___/'(_) (_) (_)'\___/''\__)(____)    |
 | ---------------------------------------------- |
-| The RMM tool for Networks and Connected Devices|
+|    Monitor any network and IT infrastructure   |
 +------------------------------------------------+
 "
 Write-Host "This is the Domotz Diagnostic application. 
@@ -183,31 +211,55 @@ else {
 }
 Write-Host " Done!"
 
-# Collect Network Information
-Write-Host ""
-Write-Host -noNewLine "-> Collecting Network Configuration info...."
+# # Getting Domotz agent processes properties
+# Write-Host ""
+# Write-Host -noNewLine "-> Collecting Domotz agent process properties...."
 
-try {
-    $netInfo=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/net-info -TimeoutSec 10
-}
-catch {
-    Write-Host "Collecting Network Information -->" $_.Exception.Message
-    $lastError=$_.Exception.Message
-}
+#     $getUserDA=Get-Process -Name domotzagent -IncludeUserName | Select-Object UserName |ForEach-Object { $_.UserName }  | Select -First 1
+#     #$getUserDN=Get-Process -Name domotz_node -IncludeUserName | Select-Object UserName |ForEach-Object { $_.UserName }  | Select -First 1
+#     $getUserDN="pippo"
 
-if (!$netInfo) {
-    Add-Content $warningsFile ""
-    Add-Content $warningsFile "-> WARNING: Unable to get net-info logs from 127.0.0.1:3000 " 
-    Add-Content $warningsFile $lastError
-}
-else {
-    $netinfoFile="$DesktopPath\$customerLogDir\net_info.txt"
-    Add-Content $netinfoFile "--Agent NetFinfo Report $date--"
-    Add-Content $netinfoFile ""
-    $netInfo.Content | ConvertFrom-Json | ConvertTo-Json -depth 100 | Out-File $netinfoFile
-}
+#     Add-Content $reportFile ""
+#     Add-Content $reportFile "-> Domotz agent process properties:"
+#     Add-Content $reportFile "Domotz Agent User: $getUserDA"
+#     Add-Content $reportFile "Domotz Agent User: $getUserDN"
 
-# Get Interfaces from Domotz Node
+#     if ($getUserDA -eq 'NT AUTHORITY\SYSTEM' -And $getUserDN -eq 'NT AUTHORITY\SYSTEM') {
+#         Write-Host "ok"
+#     }
+#     else {
+#         Add-Content $warningsFile ""
+#         Add-Content $warningsFile "-> WARNING: Domotz Agent process is running as the wrong user - remote connections might not work." 
+#         Add-Content $warningsFile "Domotz Agent: $getUserDA - Domotz Node: $getUserDN" 
+#         Add-Content $warningsFile "Please check the short_agent_report.txt file for more info"  
+#     }
+# Write-Host " Done!"
+
+# # Collect Network Information
+# Write-Host ""
+# Write-Host -noNewLine "-> Collecting Network Configuration info...."
+
+# try {
+#     $netInfo=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/net-info -TimeoutSec 10
+# }
+# catch {
+#     Write-Host "Collecting Network Information -->" $_.Exception.Message
+#     $lastError=$_.Exception.Message
+# }
+
+# if (!$netInfo) {
+#     Add-Content $warningsFile ""
+#     Add-Content $warningsFile "-> WARNING: Unable to get net-info logs from 127.0.0.1:3000 " 
+#     Add-Content $warningsFile $lastError
+# }
+# else {
+#     $netinfoFile="$DesktopPath\$customerLogDir\net_info.txt"
+#     Add-Content $netinfoFile "--Agent NetFinfo Report $date--"
+#     Add-Content $netinfoFile ""
+#     $netInfo.Content | ConvertFrom-Json | ConvertTo-Json -depth 100 | Out-File $netinfoFile
+# }
+
+# # Get Interfaces from Domotz Node
 if (Test-Path -Path $domotzNode){
     New-Item -ItemType Directory -Force -Path $DesktopPath\$customerLogDir\node_info | Out-Null
     $ipDomotzNodeInt="$DesktopPath\$customerLogDir\node_info\node_interfaces.txt"
@@ -223,14 +275,14 @@ if (Test-Path -Path $domotzNode){
     $ipDomotzNodeGw="$DesktopPath\$customerLogDir\node_info\node_gw_info.txt"
     $ipDomotzNodeGw2="$DesktopPath\$customerLogDir\node_info\node_gw_info_2.txt"
     $ipDomotzNodeGw3="$DesktopPath\$customerLogDir\node_info\node_gw_info_3.txt"
-    Set-Location $agentInstDir\lib\node_modules\domotz-remote-pawn
+    Set-Location $agentInstDir\lib\node_modules\domotz-remote-pawn-ng
     &"$domotzNode" -e "console.log(JSON.stringify(require(`'default-gateway`').v4.sync()))" | Out-File $ipDomotzNodeGw
     Get-CimInstance Win32_NetworkAdapterConfiguration -filter "IPEnabled=true" | Select-Object DefaultIPGateway,Index | ConvertTo-JSON | Out-File $ipDomotzNodeGw2
     $gwIndex = Get-CimInstance Win32_NetworkAdapterConfiguration -filter "IPEnabled=true" |  Select-Object DefaultIPGateway,Index |Where-Object { $_.DefaultIPGateway -ne $null} | Select-Object -ExpandProperty Index
     Get-CimInstance Win32_NetworkAdapter -filter Index=$gwIndex | Select-Object NetConnectionID,MacAddress | ConvertTo-JSON | Out-File $ipDomotzNodeGw3
 }
 
-# Get Interfaces IP Info
+# # Get Interfaces IP Info
 $ipNicInfoFile="$DesktopPath\$customerLogDir\interfaces_brief_info.txt"
 Get-NetIPConfiguration -All | Out-File $ipNicInfoFile
 
@@ -248,7 +300,7 @@ if ($dup_int) {
     Add-Content $warningsFile $dup_IpAddr
 }
 
-# Get Computer info
+# # Get Computer info
 Write-Host ""
 Write-Host -noNewLine "-> Collecting Operating System info... please wait..."
 
@@ -277,7 +329,7 @@ if (Test-Path $daemonLogDir -PathType Container) {
     Copy-Item -Path $daemonLogDir\domotzagent.wrapper.log -Destination $DesktopPath\$customerLogDir\daemon_logs | Out-Null
 }
 
-# Collect flush logs
+# # Collect flush logs
 try {
     $flushLog=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/log/flush -TimeoutSec 10
 }
@@ -297,12 +349,35 @@ else {
 
 Write-Host " Done!"
 
-# check for Npcap issue - This has to be reviewed - have to find better evidence $match_str is too generic #TODO
+# # Get all software installed
+Write-Host ""
+Write-Host -noNewLine "-> Getting all software installed that can be conflicting with Domotz... please wait (this can take some time)..."
+try {
+    $swList=Get-WmiObject -Class Win32_Product |Select-Object Name,Caption, Version
+}
+catch {
+    Write-Host "Collecting sw installed -->" $_.Exception.Message
+    $lastError=$_.Exception.Message
+}
+
+if (!$swList) {
+    Add-Content $warningsFile ""
+    Add-Content $warningsFile "-> WARNING: Unable to get sw installed"
+    Add-Content $warningsFile $lastError
+}
+else {
+    $swList | Out-File $DesktopPath\$customerLogDir\software_installed_on_windows_agent_host.txt
+}
+
+Write-Host " Done!"
+
+# # check for Npcap issue - This has to be reviewed - have to find better evidence $match_str is too generic #TODO
 Write-Host ""
 Write-Host -noNewLine "-> Checking for win Npcap issues please wait..."
 
 $npcap_info=Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, InstallDate | Where-Object -Property DisplayName -Match Npcap
 $npcap_version=$npcap_info.DisplayVersion
+Add-Content $reportFile ""
 Add-Content $reportFile "Npcap version=$npcap_version"
 
 $match_str="Cannot find MAC address for device with IP"
@@ -315,8 +390,9 @@ if(Select-String -Path $DesktopPath\$customerLogDir\listener_logs\*.log.* -Patte
 }
 Write-Host " Done!"
 
-##ADD check for the Nmap version and details - not ready yet ...
-##https://domotzjira.atlassian.net/browse/NI-386 
+# ##check for the Nmap version and details - not ready yet ...
+Write-Host ""
+Write-Host -noNewLine "-> Checking for win Npcap issues version and details..."
 try {
     $domotzStatus=Invoke-WebRequest -URI http://127.0.0.1:3000/api/v1/status -TimeoutSec 10
 }
@@ -356,9 +432,37 @@ else {
 }
 Write-Host " Done!"
 
+# # Check if npcap version is present
+Set-Location $DesktopPath\$customerLogDir\
+$npcapVer=Select-String -Path .\agent_short_report.txt -Pattern 'Npcap' | Select-Object Line | ForEach-Object { $_.Line }
+$npcapVer=$npcapVer.split("=")
+$npcapVer=$npcapVer[1]
 
-# Domotz Agent -- Test Firewall
-# Messages
+if ([string]::IsNullOrEmpty($npcapVer)) {
+    Add-Content $warningsFile ""
+    Add-Content $warningsFile "-> CRITICAL: Unable to get npcap version -- it could be not installed!!"
+}
+
+# Test Windows Firewall
+Write-Host ""
+Write-Host -noNewLine "-> Collecting Windows Firewall info... please wait..."
+
+$winFwEnabled=Get-NetFirewallProfile | Select-Object Name -Expandproperty Enabled
+if ($winFwEnabled -contains "True") { 
+    Add-Content $warningsFile ""
+    Add-Content $warningsFile "-> WARNING: Windows Firewall is enabled please check the windows_firewall.txt and windows_firewall_rules.txt for more info"
+    $winFwInfoFile="$DesktopPath\$customerLogDir\windows_firewall.txt"
+    $winFwRulesFile="$DesktopPath\$customerLogDir\windows_firewall_rules.txt"
+    Get-NetFirewallProfile | Out-File $winFwInfoFile
+    Get-NetFirewallRule | Out-File $winFwRulesFile
+  }
+
+
+Write-Host " Done!"
+
+
+# # Domotz Agent -- Test Perimeter Firewall
+# # Messages
 Write-Host ""
 Write-Host -noNewLine "-> Testing network connection to Domotz Cloud... please wait..."
 $fwReportFile="$DesktopPath\$customerLogDir\firewall_check_report.txt"
@@ -427,7 +531,7 @@ if (Test-Path -Path $currentDir\fast_speed_test.js -PathType Leaf) {
     $speedtestReportFile="$DesktopPath\$customerLogDir\speedtest_check_log.txt"
     &"$domotzNode" $currentDir\fast_speed_test.js | Out-File $speedtestReportFile
     
-    Write-Host " Done!"
+  Write-Host " Done!"
 }
 
 # Create the final Zip file
