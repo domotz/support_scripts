@@ -1,9 +1,14 @@
 #!/bin/bash
-# Domotz VLAN Configurator script for Linux
-# What it does:
-# - configures VLANs on a Linux host
-
+# This script provides an example configuration for setting up Virtual LANs (VLANs) on a Linux system. 
+# It demonstrates the creation of a VLAN interface with a specified VLAN ID on top of an existing network interface.
+# Prerequisites:
+# - the system should use the netplan file for network configuration.
 ver="1.0"
+
+# !!!Please changhe the path of the netplan file according to your system setup.!!!
+
+# Change this to your netplan file path
+NETPLAN_FILE="/etc/netplan/00-installer-config.yaml"
 
 # Check if the script is run as root
 if [[ $EUID -ne 0 ]]; then
@@ -11,25 +16,6 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "+------------------------------------------------+"
-echo "|  ___                             _             |"
-echo "| (  _'\                          ( )_           |"
-echo "| | | ) |   _     ___ ___     _   | ,_) ____     |"
-echo "| | | | ) /'_'\ /' _ ' _ '\ /'_'\ | |  (_  ,)    |"
-echo "| | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_     |"
-echo "| (____/''\___/'(_) (_) (_)'\___/''\__)(____)    |"
-echo "| ---------------------------------------------- |"
-echo "| The IT Monitoring and Management Solution      |"
-echo "+------------------------------------------------+"
-echo ""
-echo "VLAN Configurator for Ubuntu Linux ver ${ver}"
-echo "========================"
-echo "Before using this, make sure your system uses the"
-echo "netplan file to configure its network properties"
-echo "========================"
-
-# Change this to your netplan file path
-NETPLAN_FILE="/etc/netplan/00-installer-config.yaml"
 
 # Function to check if the IP address is valid
 validate_ip() {
