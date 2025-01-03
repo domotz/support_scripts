@@ -1,35 +1,20 @@
 #!/bin/bash
-# Netplan Configurator script for Linux
-# What it does:
-# - Configures network interfaces on a Linux host using netplan
-
+# This script provides an example configuration for setting up and configure the network on a Linux system. 
+# Prerequisites:
+# - the system should use the netplan file for network configuration.
 ver="1.0"
+
+# !!!Please changhe the path of the netplan file according to your system setup.!!!
+
+# Change this to your netplan file path
+NETPLAN_FILE="/etc/netplan/00-installer-config.yaml"
+
 
 # Check if the script is run as root
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root"
     exit 1
 fi
-
-echo "+----------------------------------------------------------+"
-echo "|         ___                             _                |"
-echo "|        (  _'\                          ( )_              |"
-echo "|        | | ) |   _     ___ ___     _   | ,_) ____        |"
-echo "|        | | | ) /'_'\ /' _ ' _ '\ /'_'\ | |  (_  ,)       |"
-echo "|        | |_) |( (_) )| ( ) ( ) |( (_) )| |_  /'/_        |"
-echo "|        (____/''\___/'(_) (_) (_)'\___/''\__)(____)       |"
-echo "| -------------------------------------------------------- |"
-echo "| The IT Infrastructure Monitoring and Management Solution |"
-echo "+---------------------------------------------------------+"
-echo ""
-echo "Netplan Configurator for Ubuntu Linux ver ${ver}"
-echo "========================"
-echo "Before using this, make sure your system uses the"
-echo "netplan file to configure its network properties"
-echo "========================"
-
-# Change this to your netplan file path
-NETPLAN_FILE="/etc/netplan/00-installer-config.yaml"
 
 # Function to check if the IP address is valid
 validate_ip() {
