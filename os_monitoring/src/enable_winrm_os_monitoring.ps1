@@ -452,6 +452,14 @@ function __ManageLocalUserAndGroup {
                     Write-Host "Error adding user to group"
                     return 3  # Error adding user to group
                 }
+            if (-not $isMember) {
+                # Add the user to the group if they are not a member
+                Write-Host  "Adding user $UserName to group $GroupName"
+                $addUserToGroupProcess = Start-Process -FilePath $cmd -ArgumentList "localgroup $GroupName $Username /add /Y  "-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL 
+                if ($addUserToGroupProcess.ExitCode -ne 0) {
+                    Write-Host "Error adding user to group"
+                    return 3  # Error adding user to group
+                }
             }
         }
     }
@@ -601,6 +609,7 @@ try {
 catch {}
 
 $LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
+$RC = 1
 $RC = 1
 Start-Transcript -Path $LogFile
 if ($UserName -eq $GroupName) {
@@ -758,6 +767,7 @@ if (!($PSBoundParameters.ContainsKey('WmiAccessOnly'))) {
                 $NewPass
                 Write-Host "`n`n"
                 Start-Transcript -Path $LogFile -Append | Out-Null
+
 
             }
 
