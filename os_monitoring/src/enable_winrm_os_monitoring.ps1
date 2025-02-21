@@ -141,17 +141,28 @@ function Set-WMIAcl {
     $WBEM_REMOTE_ACCESS = 0x20
 
 
-    $ErrorActionPreference = "Stop"
-
-    $InvokeParams = @{Namespace = $Namespace; Path = "__systemsecurity=@"; ComputerName = $ENV:ComputerName }
-    $output = Invoke-WmiMethod @InvokeParams -Name "GetSecurityDescriptor"
-    if ($output.ReturnValue -ne 0) { throw "GetSecurityDescriptor failed:  $($output.ReturnValue)" }
+    $InvokeParams = @{Namespace = $Namespace; Path = '__systemsecurity=@'; ComputerName = $ENV:ComputerName }
+    Write-Output "GetSecurityDescriptor Parameters:"
+    Write-Output "Namespace = $Namespace"
+    Write-Output "Path = __systemsecurity=@"
+    Write-Output "ComputerName = $ENV:ComputerName"
+    
+    
+    try {
+        $output = Invoke-WmiMethod @InvokeParams -Name "GetSecurityDescriptor" -ErrorAction Stop
+    }
+    catch {
+        Write-Error "Invoke-WmiMethod GetSecurityDescriptor failed: $_"
+        Write-Host "Make sure there are not unresolved/unknown SIDs in the ACL of WMI security" -ForegroundColor Red -BackgroundColor White
+        $output
+        return $false
+    }
 
     $ACL = $output.Descriptor
 
     if ($Account.Contains('\')) {
         $Domain = $Account.Split('\')[0]
-        if (($Domain -eq ".") -or ($Domain -eq "BUILTIN")) { $Domain = $ComputerName }
+        if (($Domain -eq ".") -or ($Domain -eq "BUILTIN")) { $Domain = $ENV:ComputerName }
         $AccountName = $Account.Split('\')[1]
     }
     elseif ($Account.Contains('@')) {
@@ -179,12 +190,19 @@ function Set-WMIAcl {
 
     $ACE.AceType = $ACCESS_ALLOWED_ACE_TYPE
     $ACL.DACL += $ACE
-    $parameters = @{Name = "SetSecurityDescriptor"; ArgumentList = $ACL } + $InvokeParams
-    $parameters 
     $SetParams = @{Name = "SetSecurityDescriptor"; ArgumentList = $ACL } + $InvokeParams
+    $SetParams
 
-    $output = Invoke-WmiMethod @SetParams
-    if ($output.ReturnValue -ne 0) { throw "SetSecurityDescriptor failed: $($output.ReturnValue)" }
+    try {
+        $output = Invoke-WmiMethod @SetParams -ErrorAction Stop
+    }
+    catch {
+        Write-Error "Invoke-WmiMethod SetSecurityDescriptor failed: $_"
+        $output
+        return $false
+    }
+    
+    return $true
 
 }
 function Add-WinRMDaclRule {
@@ -376,7 +394,7 @@ function Find-User {
        
     }
     else {
-        $ret.Msg += "User $UserName does not exist"
+        $ret.Msg += "User $UserName is local"
         $ret.UserIsLocal = $true
     }
     return $ret
@@ -424,8 +442,16 @@ function __ManageLocalUserAndGroup {
         }
         if ($Username) {
             # Check if the user is a member of the group
-            $isMember = (net localgroup $GroupName | Select-String $Username -Quiet)
+            $isMember = (net localgroup $GroupName | Select-String -Pattern "^\s*\b$Username\b\s*$" -Quiet)
 
+            if (-not $isMember) {
+                # Add the user to the group if they are not a member
+                Write-Host  "Adding user $UserName to group $GroupName"
+                $addUserToGroupProcess = Start-Process -FilePath $cmd -ArgumentList "localgroup $GroupName $Username /add /Y  "-PassThru  -NoNewWindow -Wait -RedirectStandardError NUL 
+                if ($addUserToGroupProcess.ExitCode -ne 0) {
+                    Write-Host "Error adding user to group"
+                    return 3  # Error adding user to group
+                }
             if (-not $isMember) {
                 # Add the user to the group if they are not a member
                 Write-Host  "Adding user $UserName to group $GroupName"
@@ -557,7 +583,7 @@ function Restart-WinRM {
 
 
 #-------------------------------------------------------------------------------
-$dscriptver = "1.0"
+$dscriptver = "1.1"
 $VersionBanner = "$($MyInvocation.MyCommand.Name) Version $dscriptver"
 $line = (0..$($VersionBanner.length / 2 )) | ForEach-Object { $line + "-" }
 Write-Host $line -ForegroundColor White -BackgroundColor Blue
@@ -584,10 +610,17 @@ catch {}
 
 $LogFile = "$LogFilePath\$ENV:COMPUTERNAME-$($($MyInvocation.MyCommand.Name).replace('.ps1',''))-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
 $RC = 1
+$RC = 1
 Start-Transcript -Path $LogFile
+if ($UserName -eq $GroupName) {
+    Write-Host "Username cannot be the same as GroupName, aborting..."
+    return
+}
 
 Write-Output "Starting at $(Get-Date)"
 Write-Output "Log file is $Logfile"
+Write-Output "Windows version: $( (Get-WmiObject -Class Win32_OperatingSystem).Version)"
+Write-Output "PS version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor)"
 Write-Output "`n`n`nParameters as provided --------------------"
 foreach ($paramName in $PSBoundParameters.Keys) {
     $paramValue = $PSBoundParameters[$paramName]
@@ -735,6 +768,7 @@ if (!($PSBoundParameters.ContainsKey('WmiAccessOnly'))) {
                 Write-Host "`n`n"
                 Start-Transcript -Path $LogFile -Append | Out-Null
 
+
             }
 
         }
@@ -756,9 +790,10 @@ if (!($PSBoundParameters.ContainsKey('WmiAccessOnly'))) {
     }
 }
 if ($RC) {
-    Write-Host "-> Granting WMI permissions to $GroupName..."
+    
     foreach ($n in $Namespaces) {
-        Set-WMIAcl -Account $GroupName -Namespace $n
+        Write-Host "-> Granting WMI permissions to $GroupName on namespace $n"
+        $RC = $(Set-WMIAcl -Account $GroupName -Namespace $n) -and $RC
     }
 }
 
@@ -769,7 +804,7 @@ if ($RC) {
         Write-Host $WmiRestartMsg 
     }
     if (!($PSBoundParameters.ContainsKey('WmiAccessOnly'))) {
-        Write-Warning "We have configured WinRM to allow unencrypted authentication, if you want to rollback run the following commands:"
+        Write-Warning "We have configured WinRM to allow unencrypted authentication, if you want to rollback run the following command:"
         Write-Host "winrm set winrm/config/service '@{AllowUnencrypted=""false""}'"
         Write-Host "Run 'winrm configsddl default' to verify the group has the required permissions"
     }
