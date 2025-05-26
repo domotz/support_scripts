@@ -1,0 +1,4 @@
+device_id,agent_id,driver_id,username,password,"sample period (empty=default 30m - 5m, 10m, 15m, 30m, 1hr, 2hr, 6hr, 12hr, 24hr)"
+28841776,300576,4009,bobbytrae.wilson@gmail.com,Traerules012!_$,5m
+28841776,300576,7753,bobbytrae.wilson@gmail.com,Traerules012!_$,30m
+32339107,317784,7753,bobbytrae.wilson@gmail.com,Traerules012!_$,
