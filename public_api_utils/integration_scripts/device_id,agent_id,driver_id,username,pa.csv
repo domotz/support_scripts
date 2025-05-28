@@ -1,4 +1,12 @@
+# DISCLAIMER: 
+# This file is provided "AS IS" and is intended solely for illustrative or educational purposes. 
+# Domotz makes no warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. Use of this file is at your own risk. 
+# By using this file, you acknowledge and agree that Domotz shall not be liable for any direct, indirect, incidental, or consequential damages or losses arising from its use.  
+# You further agree to indemnify, defend, and hold harmless Domotz and its affiliates from and against any claims, liabilities, damages, or expenses resulting from your use or misuse of this file. 
+#
+# In the event of any conflict between this disclaimer and any other agreement between you and Domotz, this disclaimer shall prevail with respect to the use of this file. 
+#
 device_id,agent_id,driver_id,username,password,"sample period (empty=default 30m - 5m, 10m, 15m, 30m, 1hr, 2hr, 6hr, 12hr, 24hr)"
-28841776,300576,4009,bobbytrae.wilson@gmail.com,Traerules012!_$,5m
-28841776,300576,7753,bobbytrae.wilson@gmail.com,Traerules012!_$,30m
-32339107,317784,7753,bobbytrae.wilson@gmail.com,Traerules012!_$,
+12345678,123456,1234,dummy_username@acme.com,dummypassword,5m
+12345679,123456,1234,dummy_username@acme.com,dummypassword,30m
+12345680,123456,1234,dummy_username@acme.com,dummypassword,---

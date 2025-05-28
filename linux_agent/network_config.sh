@@ -1,4 +1,12 @@
 #!/bin/bash
+# DISCLAIMER: 
+# This script is provided "AS IS" and is intended solely for illustrative or educational purposes. 
+# Domotz makes no warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. Use of this script is at your own risk. 
+# By using this script, you acknowledge and agree that Domotz shall not be liable for any direct, indirect, incidental, or consequential damages or losses arising from its use.  
+# You further agree to indemnify, defend, and hold harmless Domotz and its affiliates from and against any claims, liabilities, damages, or expenses resulting from your use or misuse of this script. 
+#
+# In the event of any conflict between this disclaimer and any other agreement between you and Domotz, this disclaimer shall prevail with respect to the use of this script. 
+#
 # This script provides an example configuration for setting up and configure the network on a Linux system.
 # Prerequisites:
 # - the system should use the netplan file for network configuration.
