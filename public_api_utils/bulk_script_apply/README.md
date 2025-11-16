@@ -19,8 +19,6 @@ The following sections provide detailed information on setup and usage.
 - **Microsoft Excel** - Must be installed on the PC
 - **ImportExcel Module** - PowerShell module (installation instructions below)
 
-
-
 ## First-Time Setup
 
 ### Step 1: Execution Policy
@@ -38,8 +36,6 @@ When prompted, respond with:
 
 > **Note:** This only affects the current PowerShell session and doesn't change your system-wide settings.
 
-
-
 ### Step 2: Install ImportExcel Module
 
 **Check if already installed:**
@@ -53,8 +49,6 @@ Get-Module -ListAvailable -Name ImportExcel
 ```powershell
 Install-Module -Name ImportExcel -Scope CurrentUser -Force
 ```
-
-
 
 ### Step 3: Configure API Access
 
@@ -74,8 +68,6 @@ BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
 
 
 
-
-
 ## Getting Help
 
 ### View Usage Information
@@ -88,28 +80,9 @@ To see complete usage instructions and available operations:
 .\bulk_script_apply.ps1 -?
 ```
 
-### Interactive Wizard
 
-Running the script **without any parameters** launches an interactive wizard that guides you through all required steps:
-
-```powershell
-.\bulk_script_apply.ps1
-```
-
-The wizard will:
-
-1. Show usage information
-2. Ask if you want help creating the first command
-3. Display available scripts (numbered for easy selection)
-4. Show available collectors (numbered)
-5. Build the correct command for you
-6. Offer to execute it immediately or let you run it manually
-
----
 
 ## Quick Start: run the Wizard (Recommended)
-
-
 
 Running the script **without any parameters** launches an interactive wizard that guides you through all required steps:
 
@@ -118,8 +91,6 @@ Running the script **without any parameters** launches an interactive wizard tha
 ```
 
 Follow the prompts to create and execute your first command!
-
-
 
 The wizard will:
 
