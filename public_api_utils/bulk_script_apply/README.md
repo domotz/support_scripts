@@ -1,6 +1,10 @@
-# Domotz Automation Scripts - Mass Apply Tool
+# Domotz Automation Scripts - Bulk Apply Tool
 
-A PowerShell tool for mass-applying Domotz Custom Scripts to multiple devices across multiple collectors.
+A PowerShell tool designed to bulk apply Domotz Custom Scripts to multiple devices across multiple collectors.
+
+The PowerShell script allows you to associate, dissociate, or update the parameters of a script assignment for any number of devices belonging to various collectors within the same account.
+
+While the script can update many devices at once, it operates on a single script per run, which you can select through the wizard phase or by manually entering the script name in the command line.
 
 ## Workflow Overview
 
@@ -78,15 +82,11 @@ To see complete usage instructions and available operations:
 .\bulk_script_apply.ps1 -?
 ```
 
-
-
 You can:
 
 - Run the Wizard or (**Recommended**) <u>or</u>
 
 - Manual Workflow (w/o Wizard)
-
-
 
 ## Run the Wizard (Recommended)
 
@@ -108,8 +108,6 @@ The wizard will:
 6. Offer to execute it immediately or let you run it manually
 
 ---
-
-
 
 ## Manual Workflow (w/o Wizard)
 
@@ -154,23 +152,27 @@ Shows:
 
 The Excel file opens automatically. Fill in **ALL columns with RED headers**:
 
+- `_operation_` - **Required**: Specify the operation to perform on the device:
+  - `Associate` - Associate the script with the device
+  - `DeleteAssociation` - Remove the script association from the device
+  - `UpdateParameters` - Update parameters for an existing script association
 - `username`, `password` - If script requires credentials
 - Script-specific parameters (e.g., `client_id`, `client_secret`)
 - `sample_period` - Must be ≥ `_minimal_sample_period_`
 
-> **Important:** Rows with missing required parameters will be **SKIPPED** during mass-apply.
+> **Important:** Rows with missing required parameters or invalid `_operation_` values will be **SKIPPED** during bulk-apply.
 
 ### Apply Script to All Devices
 
 ```powershell
-.\bulk_script_apply.ps1 -operation mass-apply `
+.\bulk_script_apply.ps1 -operation bulk-apply `
     -script_name "Poly Monitoring"
 ```
 
 **With specific filename:**
 
 ```powershell
-.\bulk_script_apply.ps1 -operation mass-apply `
+.\bulk_script_apply.ps1 -operation bulk-apply `
     -script_name "Poly Monitoring" `
     -filename "poly_devices.xlsx"
 ```
@@ -178,7 +180,7 @@ The Excel file opens automatically. Fill in **ALL columns with RED headers**:
 **Enable debug mode:**
 
 ```powershell
-.\bulk_script_apply.ps1 -operation mass-apply `
+.\bulk_script_apply.ps1 -operation bulk-apply `
     -script_name "Poly Monitoring" `
     -debug
 ```
@@ -196,7 +198,7 @@ The Excel file is updated with results:
 | **Skipped**                | 🟠 Orange Bold | Missing required parameters      |
 | **Script already applied** | 🟢 Green Bold  | Device already has this script   |
 
-Fix any skipped/failed rows and re-run `mass-apply` to process them.
+Fix any skipped/failed rows and re-run `bulk-apply` to process them.
 
 ---
 
@@ -206,7 +208,7 @@ Fix any skipped/failed rows and re-run `mass-apply` to process them.
 | ------------------------- | -------------------------------- | ---------------------------------- | ----------------------- |
 | `list-scripts-parameters` | List all scripts and collectors  | None                               | None                    |
 | `create-excel`            | Generate Excel file with devices | `-script_name`<br>`-collector_ids` | `-filename`             |
-| `mass-apply`              | Apply script to devices in Excel | `-script_name`                     | `-filename`<br>`-debug` |
+| `bulk-apply`              | Apply script to devices in Excel | `-script_name`                     | `-filename`<br>`-debug` |
 
 ---
 
@@ -222,20 +224,21 @@ Fix any skipped/failed rows and re-run `mass-apply` to process them.
 
 **Required Input Columns** (marked in RED):
 
+- `_operation_` - Operation to perform: `Associate`, `DeleteAssociation`, or `UpdateParameters`
 - `collector_id` - Collector/agent ID
 - `ip_address` - Device IP address
 - `username`, `password` - Only if script requires credentials
 - Script-specific parameters (varies by script)
 - `sample_period` - Polling interval (must be ≥ `_minimal_sample_period_`)
 
-**Result Columns** (updated after mass-apply):
+**Result Columns** (updated after bulk-apply):
 
 - `_apply-result_` - Status (OK, Error, Skipped, Script already applied)
 - `_messages_` - Details or error messages
 
 ### Processing Logic
 
-When you run `mass-apply`:
+When you run `bulk-apply`:
 
 1. **Empty `_apply-result_`** → Processed (if all parameters filled)
 2. **Status = "OK", "Error", or "Script already applied"** → **SKIPPED** (already processed)
@@ -335,7 +338,7 @@ The script detects if Excel is open and offers to close it automatically:
 
 1. Check `_messages_` column for missing parameters
 2. Fill in the required fields (RED columns)
-3. Re-run `mass-apply` - only skipped rows will be reprocessed
+3. Re-run `bulk-apply` - only skipped rows will be reprocessed
 
 ### API Key Issues
 
@@ -386,7 +389,7 @@ Work with multiple Excel files simultaneously:
 Use `-debug` flag for detailed troubleshooting information:
 
 ```powershell
-.\bulk_script_apply.ps1 -operation mass-apply `
+.\bulk_script_apply.ps1 -operation bulk-apply `
     -script_name "Poly Monitoring" `
     -debug
 ```
@@ -411,7 +414,7 @@ The log file contains complete execution history, API calls, and error details f
 ## FAQ
 
 **Q: Can I edit Excel while the script is running?**  
-A: No. Close Excel before running `mass-apply`.
+A: No. Close Excel before running `bulk-apply`.
 
 **Q: What happens if I change columns in Excel?**  
 A: The script validates that columns match the script parameters. If mismatched, regenerate with `create-excel`.
@@ -420,7 +423,7 @@ A: The script validates that columns match the script parameters. If mismatched,
 A: Yes, but you need to clear the `_apply-result_` column first. Otherwise, the row is skipped.
 
 **Q: How do I remove a script association?**  
-A: Use the Domotz portal. This tool only applies scripts.
+A: Set the `_operation_` column to `DeleteAssociation` in the Excel file and run `bulk-apply`.
 
 **Q: Does this work with scheduled scripts?**  
 A: Yes. The `sample_period` controls how often the script runs on each device.

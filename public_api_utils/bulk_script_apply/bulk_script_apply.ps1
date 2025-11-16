@@ -131,15 +131,15 @@ Script execution stopped.
     exit
 }
 
-# Get the script name dynamically (without .ps1 extension)
-$SCRIPT_NAME = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
+# Get the PowerShell script name dynamically (without .ps1 extension)
+$PS_SCRIPT_NAME = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
 
 # Define constants
-$DEFAULT_EXCEL_BASENAME = $SCRIPT_NAME
+$DEFAULT_EXCEL_BASENAME = $PS_SCRIPT_NAME
 $DEFAULT_EXCEL_FILENAME = "$DEFAULT_EXCEL_BASENAME.xlsx"
 
 # Define log file (dynamic based on script name)
-$logFile = ".\$($SCRIPT_NAME)_Log.txt"
+$logFile = ".\$($PS_SCRIPT_NAME)_Log.txt"
 
 # Function to list only custom drivers/scripts
 function List-Scripts {
@@ -380,10 +380,10 @@ AVAILABLE COLLECTORS/AGENTS
 function Show-Help {
     $usageMessage = @"
 ================================================================================
-        DOMOTZ AUTOMATION SCRIPTS - MASS APPLY TOOL
+        DOMOTZ AUTOMATION SCRIPTS - BULK APPLY TOOL
 ================================================================================
 
-USAGE: .\$SCRIPT_NAME.ps1 -operation <operation_type> [additional parameters]
+USAGE: .\$PS_SCRIPT_NAME.ps1 -operation <operation_type> [additional parameters]
 
 ================================================================================
 OPERATION TYPES
@@ -396,7 +396,7 @@ OPERATION TYPES
                    Required: -script_name <script_name> -collector_ids <comma_separated_ids>
                    Optional: -filename <excel_file_name>
     
-    mass-apply   : Apply a Domotz custom script to multiple devices listed in Excel
+    bulk-apply   : Apply a Domotz custom script to multiple devices listed in Excel
                    Required: -script_name <script_name>
                    Optional: -filename <excel_file_name>
                    Optional: -debug (enables detailed API request logging)
@@ -407,10 +407,10 @@ WORKFLOW EXAMPLES
 
 STEP 1: Create Excel file with devices from your collectors
 --------
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
 
 With custom filename:
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
 
 STEP 2: At the end of this previous operation the created file is opened. Edit the Excel file
 --------
@@ -419,17 +419,17 @@ IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - username, password (if script requires credentials)
 - Script parameters (e.g., client_id, client_secret, etc.)
 - sample_period (must be >= minimal_sample_period)
-NOTE: Rows with missing required fields will be SKIPPED during mass-apply
+NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
 STEP 3: Apply the script to all devices in the Excel file
 --------
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring"
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
 Or with specific file:
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring" -filename "poly_devices.xlsx"
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring" -filename "poly_devices.xlsx"
 
 Or with debug mode enabled:
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring" -debug
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring" -debug
 
 NOTE: The script processes only rows where _apply-result_ is empty or "Skipped":
 - Rows with status "OK", "Error", or "Script already applied" are skipped (already processed)
@@ -444,7 +444,7 @@ The Excel file will be updated with results in _apply-result_ and _messages_ col
 - Skipped (red) = Missing required parameters (see _messages_ for details)
 - Script already applied = Device already has this script associated (from create-excel)
 
-Fix any skipped/failed rows and re-run mass-apply to process them.
+Fix any skipped/failed rows and re-run bulk-apply to process them.
 
 ================================================================================
 "@
@@ -456,10 +456,10 @@ Fix any skipped/failed rows and re-run mass-apply to process them.
 function Show-Usage {
     $usageMessage = @"
 ================================================================================
-        DOMOTZ AUTOMATION SCRIPTS - MASS APPLY TOOL
+        DOMOTZ AUTOMATION SCRIPTS - BULK APPLY TOOL
 ================================================================================
 
-USAGE: .\$SCRIPT_NAME.ps1 -operation <operation_type> [additional parameters]
+USAGE: .\$PS_SCRIPT_NAME.ps1 -operation <operation_type> [additional parameters]
 
 ================================================================================
 OPERATION TYPES
@@ -472,7 +472,7 @@ OPERATION TYPES
                    Required: -script_name <script_name> -collector_ids <comma_separated_ids>
                    Optional: -filename <excel_file_name>
     
-    mass-apply   : Apply a Domotz custom script to multiple devices listed in Excel
+    bulk-apply   : Apply a Domotz custom script to multiple devices listed in Excel
                    Required: -script_name <script_name>
                    Optional: -filename <excel_file_name>
                    Optional: -debug (enables detailed API request logging)
@@ -483,10 +483,10 @@ WORKFLOW EXAMPLES
 
 STEP 1: Create Excel file with devices from your collectors
 --------
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
 
 With custom filename:
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
 
 STEP 2: At the end of this previous operation the created file is opened. Edit the Excel file
 --------
@@ -495,17 +495,17 @@ IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - username, password (if script requires credentials)
 - Script parameters (e.g., client_id, client_secret, etc.)
 - sample_period (must be >= minimal_sample_period)
-NOTE: Rows with missing required fields will be SKIPPED during mass-apply
+NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
 STEP 3: Apply the script to all devices in the Excel file
 --------
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring"
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
 Or with specific file:
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring" -filename "poly_devices.xlsx"
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring" -filename "poly_devices.xlsx"
 
 Or with debug mode enabled:
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "Poly Monitoring" -debug
+.\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring" -debug
 
 NOTE: The script processes only rows where _apply-result_ is empty or "Skipped":
 - Rows with status "OK", "Error", or "Script already applied" are skipped (already processed)
@@ -520,17 +520,20 @@ The Excel file will be updated with results in _apply-result_ and _messages_ col
 - Skipped (red) = Missing required parameters (see _messages_ for details)
 - Script already applied = Device already has this script associated (from create-excel)
 
-Fix any skipped/failed rows and re-run mass-apply to process them.
+Fix any skipped/failed rows and re-run bulk-apply to process them.
 
 ================================================================================
 "@
     Write-Host $usageMessage -ForegroundColor Yellow
     $usageMessage | Out-File -FilePath $logFile -Append
     
+    # Initialize wizard command history tracker
+    $script:wizardCommandHistory = @()
+    
     # Ask if user wants help creating the command
     Write-Host ""
     Write-Host "================================================================================`n" -ForegroundColor Cyan
-    $response = Read-Host "Do you want help creating the first command? (Y/N)"
+    $response = Read-Host "Do you want help creating the first command i.e. the create-excel command? (Y/N)"
     
     if ($response -notmatch '^[Yy]') {
         # User doesn't want help - show STEP 1 example and exit
@@ -538,10 +541,10 @@ Fix any skipped/failed rows and re-run mass-apply to process them.
 
 STEP 1: Create Excel file with devices from your collectors
 --------
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759,312189"
 
 With custom filename:
-.\$SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
 
 "@
         Write-Host $step1Example -ForegroundColor Yellow
@@ -604,7 +607,8 @@ With custom filename:
     
     # Build the command
     $collectorIdsString = $selectedCollectorIds -join ','
-    $command = ".\$SCRIPT_NAME.ps1 -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIdsString`""
+    $psName = Split-Path -Leaf $PSCommandPath
+    $command = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIdsString`""
     
     # Display the command
     Write-Host ""
@@ -616,11 +620,14 @@ With custom filename:
     Write-Host "================================================================================`n" -ForegroundColor Cyan
     
     # Ask if user wants to run the command
-    $runResponse = Read-Host "Do you want to run this command now? (Y/N)"
+    $runResponse = Read-Host "Do you want to run this command now to create the Excel file? (Y/N)"
     
     if ($runResponse -match '^[Yy]') {
         Write-Host "`nExecuting command..." -ForegroundColor Green
         Write-Host ""
+        
+        # Track command in wizard history
+        $script:wizardCommandHistory += $command
         
         # Set the script variables to execute the command
         $script:operation = "create-excel"
@@ -667,7 +674,7 @@ if ([string]::IsNullOrEmpty($operation)) {
 }
 
 # Validate operation value
-$validOperations = @("create-excel", "list-scripts-parameters", "mass-apply")
+$validOperations = @("create-excel", "list-scripts-parameters", "bulk-apply")
 if ($operation -notin $validOperations) {
     $errorHeader = @"
 
@@ -1015,13 +1022,14 @@ AVAILABLE COLLECTORS/AGENTS
         
         # Build the corrected command
         $collectorIdsString = $selectedCollectorIds -join ','
+        $psName = Split-Path -Leaf $PSCommandPath
         
         # Build command with proper escaping for display
         if ([string]::IsNullOrEmpty($fileName)) {
-            $correctedCommand = ".\$SCRIPT_NAME.ps1 -operation create-excel -script_name `"$scriptName`" -collector_ids `"$collectorIdsString`""
+            $correctedCommand = ".\$psName -operation create-excel -script_name `"$scriptName`" -collector_ids `"$collectorIdsString`""
         }
         else {
-            $correctedCommand = ".\$SCRIPT_NAME.ps1 -operation create-excel -script_name `"$scriptName`" -collector_ids `"$collectorIdsString`" -filename `"$fileName`""
+            $correctedCommand = ".\$psName -operation create-excel -script_name `"$scriptName`" -collector_ids `"$collectorIdsString`" -filename `"$fileName`""
         }
         
         # Display the corrected command
@@ -1165,14 +1173,15 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
         }
         
         $selectedScript = $sortedScripts[[int]$scriptNumber - 1]
+        $psName = Split-Path -Leaf $PSCommandPath
         
         # Build the corrected command
         # Build command with proper escaping for display
         if ([string]::IsNullOrEmpty($fileName)) {
-            $correctedCommand = ".\$SCRIPT_NAME.ps1 -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIds`""
+            $correctedCommand = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIds`""
         }
         else {
-            $correctedCommand = ".\$SCRIPT_NAME.ps1 -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIds`" -filename `"$fileName`""
+            $correctedCommand = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIds`" -filename `"$fileName`""
         }
         
         # Display the corrected command
@@ -1394,6 +1403,7 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
                 # Store IP address as-is, will format as text in Excel
                 $deviceRow["ip_address"] = if ($device.ip_addresses -and $device.ip_addresses.Count -gt 0) { $device.ip_addresses[0] } else { "" }
                 $deviceRow["_device_id_"] = $device.id
+                $deviceRow["_operation_"] = ""
                 
                 # Check if this device has an existing association
                 $existingAssociation = $null
@@ -1607,6 +1617,30 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
         Write-Host $formatMsg -ForegroundColor Cyan
         $formatMsg | Out-File -FilePath $logFile -Append
         
+        # Apply red text formatting to _operation_ column
+        if ($columnMap.ContainsKey("_operation_")) {
+            $operationColNum = $columnMap["_operation_"]
+            
+            $operationFormatMsg = "  [INFO] Applying red text formatting to _operation_ column..."
+            Write-Host $operationFormatMsg -ForegroundColor Cyan
+            $operationFormatMsg | Out-File -FilePath $logFile -Append
+            
+            # Apply red text to entire column
+            for ($row = 1; $row -le $lastRow; $row++) {
+                $cell = $worksheet.Cells[$row, $operationColNum]
+                $cell.Style.Font.Color.SetColor([System.Drawing.Color]::Red)
+                
+                # Make header bold (row 1 only)
+                if ($row -eq 1) {
+                    $cell.Style.Font.Bold = $true
+                }
+            }
+            
+            $operationDoneMsg = "  [OK] Applied red text formatting to _operation_ column"
+            Write-Host $operationDoneMsg -ForegroundColor Green
+            $operationDoneMsg | Out-File -FilePath $logFile -Append
+        }
+        
         # Apply hyperlinks to _device_display_name_ column
         if ($columnMap.ContainsKey("_device_display_name_")) {
             $displayNameColNum = $columnMap["_device_display_name_"]
@@ -1687,6 +1721,36 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             }
         }
         
+        # Apply data validation to _operation_ column
+        if ($columnMap.ContainsKey("_operation_")) {
+            $operationColNum = $columnMap["_operation_"]
+            
+            $validationMsg = "  [INFO] Adding data validation to _operation_ column..."
+            Write-Host $validationMsg -ForegroundColor Cyan
+            $validationMsg | Out-File -FilePath $logFile -Append
+            
+            # Apply data validation to all data rows (skip header row)
+            for ($row = 2; $row -le $lastRow; $row++) {
+                $cell = $worksheet.Cells[$row, $operationColNum]
+                
+                # Create data validation for the cell
+                $validation = $cell.DataValidation.AddListDataValidation()
+                $validation.ShowErrorMessage = $true
+                $validation.ErrorTitle = "Invalid Operation"
+                $validation.Error = "Please select a valid operation: Associate, DeleteAssociation, or UpdateParameters"
+                $validation.AllowBlank = $true
+                
+                # Add the three allowed values
+                $validation.Formula.Values.Add("Associate") | Out-Null
+                $validation.Formula.Values.Add("DeleteAssociation") | Out-Null
+                $validation.Formula.Values.Add("UpdateParameters") | Out-Null
+            }
+            
+            $validationDoneMsg = "  [OK] Added data validation with dropdown list to $($lastRow - 1) cells in _operation_ column"
+            Write-Host $validationDoneMsg -ForegroundColor Green
+            $validationDoneMsg | Out-File -FilePath $logFile -Append
+        }
+        
         # Save and close
         $excel.Save()
         $excel.Dispose()
@@ -1713,7 +1777,7 @@ Output File: $targetFileName
 $fileExistsMessage
 
 The Excel file is ready for editing. Fill in the required fields (marked in red)
-before running the mass-apply operation.
+before running the bulk-apply operation.
 
 ================================================================================
 "@
@@ -1728,6 +1792,8 @@ before running the mass-apply operation.
         Start-Process $targetFilePath
         
         # Display next step command
+        # Use the actual PowerShell script filename (not the Domotz script name)
+        $psName = Split-Path -Leaf $PSCommandPath
         $nextStepMsg = @"
 
 ================================================================================
@@ -1737,12 +1803,69 @@ before running the mass-apply operation.
 After you finish editing the Excel file and filling in all required fields,
 run the following command to apply the script to all devices:
 
-.\$SCRIPT_NAME.ps1 -operation mass-apply -script_name "$scriptName" -filename "$targetFileName"
+.\$psName -operation bulk-apply -script_name "$scriptName" -filename "$targetFileName"
 
 ================================================================================
 "@
         Write-Host $nextStepMsg -ForegroundColor Yellow
         $nextStepMsg | Out-File -FilePath $logFile -Append
+        
+        # Ask user if they want to run the bulk-apply command now
+        Write-Host ""
+        Write-Host "Do you want to run the bulk-apply command now? (Y/N): " -ForegroundColor Cyan -NoNewline
+        $runResponse = Read-Host
+        $responseMsg = "User response: $runResponse"
+        $responseMsg | Out-File -FilePath $logFile -Append
+        
+        if ($runResponse -match '^[Yy]') {
+            $executeMsg = "`n[INFO] Executing bulk-apply operation..."
+            Write-Host $executeMsg -ForegroundColor Green
+            $executeMsg | Out-File -FilePath $logFile -Append
+            
+            # Track command in wizard history if it exists
+            $bulkApplyCommand = ".\$psName -operation bulk-apply -script_name `"$scriptName`" -filename `"$targetFileName`""
+            if ($null -ne $script:wizardCommandHistory) {
+                $script:wizardCommandHistory += $bulkApplyCommand
+            }
+            
+            # Call bulk-Apply-Script function
+            bulk-Apply-Script -scriptName $scriptName -fileName $targetFileName
+            
+            # Display wizard command summary at the end (if wizard was used)
+            if ($null -ne $script:wizardCommandHistory -and $script:wizardCommandHistory.Count -gt 0) {
+                $wizardSummaryMsg = @"
+
+================================================================================
+                    WIZARD COMMAND HISTORY SUMMARY
+================================================================================
+
+The following commands were executed during this wizard session:
+
+"@
+                Write-Host $wizardSummaryMsg -ForegroundColor Cyan
+                $wizardSummaryMsg | Out-File -FilePath $logFile -Append
+                
+                $commandIndex = 1
+                foreach ($cmd in $script:wizardCommandHistory) {
+                    $cmdLine = "[$commandIndex] $cmd"
+                    Write-Host $cmdLine -ForegroundColor Yellow
+                    $cmdLine | Out-File -FilePath $logFile -Append
+                    $commandIndex++
+                }
+                
+                $endSummary = @"
+
+================================================================================
+"@
+                Write-Host $endSummary -ForegroundColor Cyan
+                $endSummary | Out-File -FilePath $logFile -Append
+            }
+        }
+        else {
+            $cancelMsg = "`n[INFO] bulk-apply operation cancelled by user. You can run it manually later."
+            Write-Host $cancelMsg -ForegroundColor Yellow
+            $cancelMsg | Out-File -FilePath $logFile -Append
+        }
     }
     catch {
         $errorMsg = "ERROR: Failed to create Excel file - $_"
@@ -1752,14 +1875,14 @@ run the following command to apply the script to all devices:
     }
 }
 
-# Function to apply custom script to devices (mass-apply operation)
-function Mass-Apply-Script {
+# Function to apply custom script to devices (bulk-apply operation)
+function bulk-Apply-Script {
     param (
         [string]$scriptName,
         [string]$fileName
     )
     
-    $message = "`n=== Mass Applying Custom Script: $scriptName ===`n"
+    $message = "`n=== bulk Applying Custom Script: $scriptName ===`n"
     Write-Host $message -ForegroundColor Magenta
     $message | Out-File -FilePath $logFile -Append
     
@@ -2460,6 +2583,184 @@ Script execution stopped.
         return
     }
     
+    # PRE-ANALYSIS: Scan for DeleteAssociation and UpdateParameters operations
+    $preAnalysisMsg = "`n=== Pre-Analysis: Scanning for DeleteAssociation/UpdateParameters Operations ===`n"
+    Write-Host $preAnalysisMsg -ForegroundColor Magenta
+    $preAnalysisMsg | Out-File -FilePath $logFile -Append
+    
+    # Check if _operation_ column exists
+    $hasOperationColumn = $columnHeaders -contains "_operation_"
+    $collectorsWithSpecialOps = @{}
+    $allExistingAssociations = @()
+    
+    if ($hasOperationColumn) {
+        $scanMsg = "[INFO] Scanning all rows for DeleteAssociation or UpdateParameters operations..."
+        Write-Host $scanMsg -ForegroundColor Cyan
+        $scanMsg | Out-File -FilePath $logFile -Append
+        
+        # Scan all devices for special operations
+        $collectorsToQuery = @{}
+        foreach ($device in $devices) {
+            $operation = $device."_operation_"
+            if ($operation -eq "DeleteAssociation" -or $operation -eq "UpdateParameters") {
+                $collectorId = $device.collector_id
+                if (-not [string]::IsNullOrWhiteSpace($collectorId)) {
+                    if (-not $collectorsToQuery.ContainsKey($collectorId)) {
+                        $collectorsToQuery[$collectorId] = @{
+                            "DeleteAssociation" = 0
+                            "UpdateParameters"  = 0
+                        }
+                    }
+                    $collectorsToQuery[$collectorId][$operation]++
+                }
+            }
+        }
+        
+        if ($collectorsToQuery.Count -gt 0) {
+            $foundMsg = @"
+
+[FOUND] Detected special operations in the spreadsheet:
+  - Collectors with DeleteAssociation or UpdateParameters: $($collectorsToQuery.Count)
+
+Collector breakdown:
+"@
+            Write-Host $foundMsg -ForegroundColor Yellow
+            $foundMsg | Out-File -FilePath $logFile -Append
+            
+            foreach ($collId in $collectorsToQuery.Keys) {
+                $disassocCount = $collectorsToQuery[$collId]["DeleteAssociation"]
+                $updateCount = $collectorsToQuery[$collId]["UpdateParameters"]
+                $breakdownMsg = "  - Collector ID $collId`: DeleteAssociation=$disassocCount, UpdateParameters=$updateCount"
+                Write-Host $breakdownMsg -ForegroundColor Cyan
+                $breakdownMsg | Out-File -FilePath $logFile -Append
+            }
+            
+            # Fetch existing associations for each collector
+            $fetchMsg = "`n[INFO] Fetching existing associations from Domotz API..."
+            Write-Host $fetchMsg -ForegroundColor Cyan
+            $fetchMsg | Out-File -FilePath $logFile -Append
+            
+            foreach ($collId in $collectorsToQuery.Keys) {
+                try {
+                    $assocEndpoint = "$baseURL/custom-driver/agent/$collId/association"
+                    $assocHeaders = @{
+                        "Accept"       = "application/json"
+                        "Content-Type" = "application/json"
+                        "X-Api-Key"    = $apiKey
+                    }
+                    
+                    $assocMsg = "  - Fetching associations from Collector ID $collId..."
+                    Write-Host $assocMsg -ForegroundColor Cyan
+                    $assocMsg | Out-File -FilePath $logFile -Append
+                    
+                    $associations = Invoke-RestMethod -Uri $assocEndpoint -Headers $assocHeaders -Method Get
+                    
+                    # Filter to only associations matching the current script ID
+                    $matchingAssociations = $associations | Where-Object { $_.custom_driver_id -eq $scriptID }
+                    
+                    if ($matchingAssociations) {
+                        $matchCount = @($matchingAssociations).Count
+                        $matchMsg = "    [OK] Found $matchCount association(s) for script '$scriptName' (ID: $scriptID)"
+                        Write-Host $matchMsg -ForegroundColor Green
+                        $matchMsg | Out-File -FilePath $logFile -Append
+                        
+                        # Store associations for this collector with collector_id added
+                        foreach ($assoc in $matchingAssociations) {
+                            # Add collector_id to the association object for later reference
+                            $assoc | Add-Member -NotePropertyName "collector_id" -NotePropertyValue $collId -Force
+                        }
+                        $collectorsWithSpecialOps[$collId] = $matchingAssociations
+                        $allExistingAssociations += $matchingAssociations
+                    }
+                    else {
+                        $noMatchMsg = "    [INFO] No associations found for script '$scriptName' (ID: $scriptID)"
+                        Write-Host $noMatchMsg -ForegroundColor Gray
+                        $noMatchMsg | Out-File -FilePath $logFile -Append
+                    }
+                }
+                catch {
+                    $errorMsg = "    [ERROR] Failed to fetch associations from Collector ID $collId`: $_"
+                    Write-Host $errorMsg -ForegroundColor Red
+                    $errorMsg | Out-File -FilePath $logFile -Append
+                }
+            }
+            
+            # Display summary of found associations (detailed output only in debug mode)
+            if ($allExistingAssociations.Count -gt 0) {
+                if ($debug) {
+                    $summaryMsg = @"
+
+================================================================================
+                  EXISTING ASSOCIATIONS FOUND                                   
+================================================================================
+
+Total associations for script '$scriptName' (ID: $scriptID): $($allExistingAssociations.Count)
+
+"@
+                    Write-Host $summaryMsg -ForegroundColor Green
+                    $summaryMsg | Out-File -FilePath $logFile -Append
+                    
+                    # Display each association
+                    $index = 1
+                    foreach ($assoc in $allExistingAssociations) {
+                        $assocDetails = @"
+Association #${index}:
+  - Collector ID: $($assoc.collector_id)
+  - Association ID: $($assoc.id)
+  - Device ID: $($assoc.device_id)
+  - Custom Driver ID: $($assoc.custom_driver_id)
+  - Status: $($assoc.status)
+  - Sample Period: $($assoc.sample_period)
+  - Last Inspection: $($assoc.last_inspection_time)
+  - Used Variables: $($assoc.used_variables)
+"@
+                        Write-Host $assocDetails -ForegroundColor Cyan
+                        $assocDetails | Out-File -FilePath $logFile -Append
+                        
+                        if ($assoc.parameters -and $assoc.parameters.Count -gt 0) {
+                            $paramListMsg = "  - Parameters ($($assoc.parameters.Count)):"
+                            Write-Host $paramListMsg -ForegroundColor Cyan
+                            $paramListMsg | Out-File -FilePath $logFile -Append
+                            
+                            foreach ($param in $assoc.parameters) {
+                                $paramDetail = "      * $($param.name) ($($param.value_type)): $($param.value)"
+                                Write-Host $paramDetail -ForegroundColor Gray
+                                $paramDetail | Out-File -FilePath $logFile -Append
+                            }
+                        }
+                        Write-Host ""
+                        "" | Out-File -FilePath $logFile -Append
+                        $index++
+                    }
+                    
+                    $endSummaryMsg = "================================================================================"
+                    Write-Host $endSummaryMsg -ForegroundColor Green
+                    $endSummaryMsg | Out-File -FilePath $logFile -Append
+                }
+                else {
+                    $briefSummaryMsg = "`n[INFO] Found $($allExistingAssociations.Count) existing association(s) for script '$scriptName'. Use -debug flag to see details."
+                    Write-Host $briefSummaryMsg -ForegroundColor Cyan
+                    $briefSummaryMsg | Out-File -FilePath $logFile -Append
+                }
+            }
+            else {
+                $noAssocMsg = "`n[INFO] No existing associations found for script '$scriptName' in the specified collectors"
+                Write-Host $noAssocMsg -ForegroundColor Yellow
+                $noAssocMsg | Out-File -FilePath $logFile -Append
+            }
+        }
+        else {
+            $noSpecialOpsMsg = "[INFO] No DeleteAssociation or UpdateParameters operations found in the spreadsheet"
+            Write-Host $noSpecialOpsMsg -ForegroundColor Gray
+            $noSpecialOpsMsg | Out-File -FilePath $logFile -Append
+        }
+    }
+    else {
+        $noColumnMsg = "[INFO] _operation_ column not found in spreadsheet - skipping pre-analysis"
+        Write-Host $noColumnMsg -ForegroundColor Gray
+        $noColumnMsg | Out-File -FilePath $logFile -Append
+    }
+    
     # Initialize counters
     $script:totalAttempts = 0
     $script:successCount = 0
@@ -2472,87 +2773,30 @@ Script execution stopped.
     # Cache for device lists to avoid repeated API calls
     $deviceListCache = @{}
     
+    # Start bulk apply operation
+    $startBulkMsg = "`n=== Starting Bulk Apply Operation ===`n"
+    Write-Host $startBulkMsg -ForegroundColor Magenta
+    $startBulkMsg | Out-File -FilePath $logFile -Append
+    
+    $processingMsg = "[INFO] Processing $($devices.Count) row(s) from spreadsheet..."
+    Write-Host $processingMsg -ForegroundColor Cyan
+    $processingMsg | Out-File -FilePath $logFile -Append
+    
     # Process each device
     $rowNumber = 1
     foreach ($device in $devices) {
         $script:totalAttempts++
         
-        # Check early if this row will be skipped (already processed or missing parameters)
-        # to reduce verbose output for large files
-        $willSkipRow = $false
-        $skipReason = ""
-        
-        if ($device.PSObject.Properties.Name -contains "_apply-result_") {
-            $currentStatus = $device."_apply-result_"
-            if ($currentStatus -eq "OK" -or $currentStatus -eq "Error" -or $currentStatus -eq "Script already applied") {
-                $willSkipRow = $true
-                $skipReason = "Already processed (status: $currentStatus)"
+        # CHECK: Only process rows with _operation_ specified
+        if ($hasOperationColumn) {
+            $operation = $device."_operation_"
+            if ([string]::IsNullOrWhiteSpace($operation)) {
+                $rowNumber++
+                $skipOperationMsg = "[Row #$($rowNumber-1)] SKIPPED - No operation specified in _operation_ column (Collector: $($device.collector_id), IP: $($device.ip_address))"
+                Write-Host $skipOperationMsg -ForegroundColor Gray
+                $skipOperationMsg | Out-File -FilePath $logFile -Append
+                continue
             }
-            elseif ($currentStatus -eq "Skipped") {
-                # Check if parameters are now filled to decide whether to reprocess
-                $allParamsFilled = $true
-                $missingParams = @()
-                
-                # Check all required parameters
-                foreach ($paramName in $script_parameters_name) {
-                    $paramValue = if ($device.PSObject.Properties.Name -contains $paramName) { $device.$paramName } else { "" }
-                    if ([string]::IsNullOrWhiteSpace($paramValue)) {
-                        $allParamsFilled = $false
-                        $missingParams += $paramName
-                    }
-                }
-                
-                # Check credentials if required
-                if ($customDriverDetails.requires_credentials -eq $true) {
-                    if ([string]::IsNullOrWhiteSpace($device.username)) {
-                        $allParamsFilled = $false
-                        $missingParams += "username"
-                    }
-                    if ([string]::IsNullOrWhiteSpace($device.password)) {
-                        $allParamsFilled = $false
-                        $missingParams += "password"
-                    }
-                }
-                
-                # Check sample_period
-                if ($device.PSObject.Properties.Name -contains "sample_period") {
-                    if ([string]::IsNullOrWhiteSpace($device.sample_period)) {
-                        $allParamsFilled = $false
-                        $missingParams += "sample_period"
-                    }
-                }
-                else {
-                    $allParamsFilled = $false
-                    $missingParams += "sample_period"
-                }
-                
-                if (-not $allParamsFilled) {
-                    # Still missing parameters, skip without verbose output
-                    $rowNumber++
-                    $skipMsg = "[Row #$($rowNumber-1)] SKIPPED - Missing: $($missingParams -join ', ') (Collector: $($device.collector_id), IP: $($device.ip_address))"
-                    Write-Host $skipMsg -ForegroundColor Yellow
-                    $skipMsg | Out-File -FilePath $logFile -Append
-                    continue
-                }
-                else {
-                    # Parameters are now filled, will reprocess - don't skip
-                    $retryMsg = "`n[RETRY] Previously skipped row now has all required parameters - Reprocessing Row #$rowNumber"
-                    Write-Host $retryMsg -ForegroundColor Green
-                    $retryMsg | Out-File -FilePath $logFile -Append
-                    
-                    $device."_apply-result_" = ""
-                    $device._messages_ = ""
-                }
-            }
-        }
-        
-        # Log minimal info for rows that will be skipped
-        if ($willSkipRow) {
-            $rowNumber++
-            $minimalMsg = "[Row #$($rowNumber-1)] $skipReason - Skipping"
-            Write-Host $minimalMsg -ForegroundColor Gray
-            $minimalMsg | Out-File -FilePath $logFile -Append
-            continue
         }
         
         # EARLY CHECK: Validate required parameters before processing row
@@ -2615,7 +2859,7 @@ Script execution stopped.
         
         foreach ($property in $device.PSObject.Properties) {
             $propertyLine = "  $($property.Name): $($property.Value)"
-            Write-Host $propertyLine -ForegroundColor Cyan
+            Write-Host $propertyLine -ForegroundColor White
             $propertyLine | Out-File -FilePath $logFile -Append
         }
         
@@ -2869,75 +3113,245 @@ Row Data Summary:
             $bodyEnd | Out-File -FilePath $logFile -Append
         }
         
-        # STEP 8: Make the API call to associate custom driver
-        try {
-            $apiEndpoint = "$baseURL/custom-driver/$scriptID/agent/$($device.collector_id)/device/$deviceID/association"
-            $headers = @{
-                "Accept"       = "application/json"
-                "Content-Type" = "application/json"
-                "X-Api-Key"    = $apiKey
-            }
-            
-            # Build request body using PSCustomObject for proper JSON serialization
-            if ($customDriverDetails.requires_credentials -eq $true) {
-                $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
-                $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
+        # STEP 8: Make the API call based on operation type
+        # Get operation type (default to "Associate" if not specified for backward compatibility)
+        $operationType = if ($hasOperationColumn -and $device.PSObject.Properties.Name -contains "_operation_") { 
+            $device."_operation_" 
+        }
+        else { 
+            "Associate" 
+        }
+        
+        if ($operationType -eq "Associate") {
+            # STEP 8A: Associate custom driver to device
+            try {
+                $apiEndpoint = "$baseURL/custom-driver/$scriptID/agent/$($device.collector_id)/device/$deviceID/association"
+                $headers = @{
+                    "Accept"       = "application/json"
+                    "Content-Type" = "application/json"
+                    "X-Api-Key"    = $apiKey
+                }
                 
-                $requestBodyObj = [PSCustomObject]@{
-                    parameters    = $parametersArray
-                    sample_period = $samplePeriod
-                    credentials   = [PSCustomObject]@{
-                        username = $username
-                        password = $password
+                # Build request body using PSCustomObject for proper JSON serialization
+                if ($customDriverDetails.requires_credentials -eq $true) {
+                    $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
+                    $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
+                    
+                    $requestBodyObj = [PSCustomObject]@{
+                        parameters    = $parametersArray
+                        sample_period = $samplePeriod
+                        credentials   = [PSCustomObject]@{
+                            username = $username
+                            password = $password
+                        }
+                    }
+                    
+                    $credMsg = "[INFO] Including credentials in API request (username: $username)"
+                    Write-Host $credMsg -ForegroundColor Gray
+                    $credMsg | Out-File -FilePath $logFile -Append
+                }
+                else {
+                    $requestBodyObj = [PSCustomObject]@{
+                        parameters    = $parametersArray
+                        sample_period = $samplePeriod
                     }
                 }
                 
-                $credMsg = "[INFO] Including credentials in API request (username: $username)"
-                Write-Host $credMsg -ForegroundColor Gray
-                $credMsg | Out-File -FilePath $logFile -Append
-            }
-            else {
-                $requestBodyObj = [PSCustomObject]@{
-                    parameters    = $parametersArray
-                    sample_period = $samplePeriod
+                $requestBody = $requestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
+                
+                # Debug: Log the actual JSON being sent (only if -debug parameter is set)
+                if ($debug) {
+                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API:`n$requestBody"
+                    Write-Host $debugMsg -ForegroundColor Gray
+                    $debugMsg | Out-File -FilePath $logFile -Append
                 }
+                
+                $callMessage = "`n[API CALL] Associating custom driver..."
+                Write-Host $callMessage -ForegroundColor Yellow
+                $callMessage | Out-File -FilePath $logFile -Append
+                
+                $response = Invoke-RestMethod -Uri $apiEndpoint -Headers $headers -Method Post -Body $requestBody
+                
+                $successMessage = "[SUCCESS] Custom driver associated successfully"
+                Write-Host $successMessage -ForegroundColor Green
+                $successMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "OK"
+                $device._messages_ = "Successfully associated"
+                
+                $script:successCount++
+                $script:successDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address), Device ID: $deviceID"
             }
-            
-            $requestBody = $requestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
-            
-            # Debug: Log the actual JSON being sent (only if -debug parameter is set)
-            if ($debug) {
-                $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API:`n$requestBody"
-                Write-Host $debugMsg -ForegroundColor Gray
-                $debugMsg | Out-File -FilePath $logFile -Append
+            catch {
+                $errorMessage = "[ERROR] Failed to associate custom driver: $_"
+                Write-Host $errorMessage -ForegroundColor Red
+                $errorMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "Error"
+                $device._messages_ = "API call failed: $_"
+                
+                $script:failureCount++
+                $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - API Error: $_"
             }
-            
-            $callMessage = "`n[API CALL] Associating custom driver..."
-            Write-Host $callMessage -ForegroundColor Yellow
-            $callMessage | Out-File -FilePath $logFile -Append
-            
-            $response = Invoke-RestMethod -Uri $apiEndpoint -Headers $headers -Method Post -Body $requestBody
-            
-            $successMessage = "[SUCCESS] Custom driver associated successfully"
-            Write-Host $successMessage -ForegroundColor Green
-            $successMessage | Out-File -FilePath $logFile -Append
-            
-            $device."_apply-result_" = "OK"
-            $device._messages_ = "Successfully associated"
-            
-            $script:successCount++
-            $script:successDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address), Device ID: $deviceID"
         }
-        catch {
-            $errorMessage = "[ERROR] Failed to associate custom driver: $_"
-            Write-Host $errorMessage -ForegroundColor Red
-            $errorMessage | Out-File -FilePath $logFile -Append
+        elseif ($operationType -eq "DeleteAssociation") {
+            # STEP 8B: Delete association from device
+            try {
+                # Find the association ID for this device from the pre-analysis data
+                $associationId = $null
+                $matchingAssoc = $allExistingAssociations | Where-Object { 
+                    $_.device_id -eq $deviceID -and $_.collector_id -eq $device.collector_id 
+                }
+                
+                if ($matchingAssoc) {
+                    $associationId = $matchingAssoc.id
+                    
+                    $foundAssocMsg = "[INFO] Found existing association ID: $associationId for Device ID: $deviceID"
+                    Write-Host $foundAssocMsg -ForegroundColor Cyan
+                    $foundAssocMsg | Out-File -FilePath $logFile -Append
+                }
+                else {
+                    # Association not found in pre-analysis, throw error
+                    throw "No existing association found for this device. Cannot delete non-existent association."
+                }
+                
+                # Make DELETE API call
+                $apiEndpoint = "$baseURL/custom-driver/$scriptID/association/$associationId"
+                $headers = @{
+                    "Accept"       = "application/json"
+                    "Content-Type" = "application/json"
+                    "X-Api-Key"    = $apiKey
+                }
+                
+                $callMessage = "`n[API CALL] Deleting association (ID: $associationId)..."
+                Write-Host $callMessage -ForegroundColor Yellow
+                $callMessage | Out-File -FilePath $logFile -Append
+                
+                $response = Invoke-RestMethod -Uri $apiEndpoint -Headers $headers -Method Delete
+                
+                $successMessage = "[SUCCESS] Association deleted successfully"
+                Write-Host $successMessage -ForegroundColor Green
+                $successMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "OK"
+                $device._messages_ = "Association deleted successfully"
+                
+                $script:successCount++
+                $script:successDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address), Device ID: $deviceID - Deleted Association ID: $associationId"
+            }
+            catch {
+                $errorMessage = "[ERROR] Failed to delete association: $_"
+                Write-Host $errorMessage -ForegroundColor Red
+                $errorMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "Error"
+                $device._messages_ = "Delete operation failed: $_"
+                
+                $script:failureCount++
+                $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - Delete Error: $_"
+            }
+        }
+        elseif ($operationType -eq "UpdateParameters") {
+            # STEP 8C: Update existing association parameters
+            try {
+                # Find the association ID for this device from the pre-analysis data
+                $associationId = $null
+                $matchingAssoc = $allExistingAssociations | Where-Object { 
+                    $_.device_id -eq $deviceID -and $_.collector_id -eq $device.collector_id 
+                }
+                
+                if ($matchingAssoc) {
+                    $associationId = $matchingAssoc.id
+                    
+                    $foundAssocMsg = "[INFO] Found existing association ID: $associationId for Device ID: $deviceID"
+                    Write-Host $foundAssocMsg -ForegroundColor Cyan
+                    $foundAssocMsg | Out-File -FilePath $logFile -Append
+                }
+                else {
+                    # Association not found in pre-analysis, throw error
+                    throw "No existing association found for this device. Cannot update non-existent association."
+                }
+                
+                # Build request body using PSCustomObject for proper JSON serialization (same as Associate)
+                $apiEndpoint = "$baseURL/custom-driver/$scriptID/association/$associationId"
+                $headers = @{
+                    "Accept"       = "application/json"
+                    "Content-Type" = "application/json"
+                    "X-Api-Key"    = $apiKey
+                }
+                
+                if ($customDriverDetails.requires_credentials -eq $true) {
+                    $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
+                    $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
+                    
+                    $requestBodyObj = [PSCustomObject]@{
+                        parameters    = $parametersArray
+                        sample_period = $samplePeriod
+                        credentials   = [PSCustomObject]@{
+                            username = $username
+                            password = $password
+                        }
+                    }
+                    
+                    $credMsg = "[INFO] Including credentials in API request (username: $username)"
+                    Write-Host $credMsg -ForegroundColor Gray
+                    $credMsg | Out-File -FilePath $logFile -Append
+                }
+                else {
+                    $requestBodyObj = [PSCustomObject]@{
+                        parameters    = $parametersArray
+                        sample_period = $samplePeriod
+                    }
+                }
+                
+                $requestBody = $requestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
+                
+                # Debug: Log the actual JSON being sent (only if -debug parameter is set)
+                if ($debug) {
+                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API:`n$requestBody"
+                    Write-Host $debugMsg -ForegroundColor Gray
+                    $debugMsg | Out-File -FilePath $logFile -Append
+                }
+                
+                $callMessage = "`n[API CALL] Updating association parameters (ID: $associationId)..."
+                Write-Host $callMessage -ForegroundColor Yellow
+                $callMessage | Out-File -FilePath $logFile -Append
+                
+                $response = Invoke-RestMethod -Uri $apiEndpoint -Headers $headers -Method Put -Body $requestBody
+                
+                $successMessage = "[SUCCESS] Association parameters updated successfully"
+                Write-Host $successMessage -ForegroundColor Green
+                $successMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "OK"
+                $device._messages_ = "Parameters updated successfully"
+                
+                $script:successCount++
+                $script:successDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address), Device ID: $deviceID - Updated Association ID: $associationId"
+            }
+            catch {
+                $errorMessage = "[ERROR] Failed to update association parameters: $_"
+                Write-Host $errorMessage -ForegroundColor Red
+                $errorMessage | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "Error"
+                $device._messages_ = "Update operation failed: $_"
+                
+                $script:failureCount++
+                $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - Update Error: $_"
+            }
+        }
+        else {
+            # Unsupported operation type
+            $unsupportedMsg = "[ERROR] Unsupported operation type: '$operationType' (Collector: $($device.collector_id), IP: $($device.ip_address))"
+            Write-Host $unsupportedMsg -ForegroundColor Red
+            $unsupportedMsg | Out-File -FilePath $logFile -Append
             
             $device."_apply-result_" = "Error"
-            $device._messages_ = "API call failed: $_"
+            $device._messages_ = "Unsupported operation type: $operationType"
             
             $script:failureCount++
-            $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - API Error: $_"
+            $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - Unsupported operation: $operationType"
         }
     }
     
@@ -3240,7 +3654,7 @@ Parameter Mapping (Excel Column -> Custom Driver Parameter):
     Write-Host "`n$summary"
     $summary | Out-File -FilePath $logFile -Append
     
-    # Auto-open the Excel file after mass-apply completes
+    # Auto-open the Excel file after bulk-apply completes
     if ([string]::IsNullOrEmpty($fileName)) {
         $fileName = $DEFAULT_EXCEL_FILENAME
     }
@@ -3280,13 +3694,13 @@ switch ($operation) {
         }
         Create-Excel -scriptName $script_name -collectorIds $collector_ids -fileName $filename
     }
-    "mass-apply" {
+    "bulk-apply" {
         # Validate required parameters
         if ([string]::IsNullOrEmpty($script_name)) {
-            Write-Host "ERROR: -script_name parameter is mandatory for mass-apply operation!" -ForegroundColor Red
+            Write-Host "ERROR: -script_name parameter is mandatory for bulk-apply operation!" -ForegroundColor Red
             Show-Usage
         }
-        Mass-Apply-Script -scriptName $script_name -fileName $filename
+        bulk-Apply-Script -scriptName $script_name -fileName $filename
     }
     default {
         Write-Host "ERROR: Invalid operation specified!" -ForegroundColor Red
