@@ -66,8 +66,6 @@ BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
 
 > **Tip:** Get your API key from Domotz account settings. See [Domotz API Documentation](https://help.domotz.com/admin-global-features/domotz-api/) for details.
 
-
-
 ## Getting Help
 
 ### View Usage Information
@@ -82,7 +80,15 @@ To see complete usage instructions and available operations:
 
 
 
-## Quick Start: run the Wizard (Recommended)
+You can:
+
+- Run the Wizard or (**Recommended**) <u>or</u>
+
+- Manual Workflow (w/o Wizard)
+
+
+
+## Run the Wizard (Recommended)
 
 Running the script **without any parameters** launches an interactive wizard that guides you through all required steps:
 
@@ -103,7 +109,9 @@ The wizard will:
 
 ---
 
-## Manual Workflow (Without Wizard)
+
+
+## Manual Workflow (w/o Wizard)
 
 ### List Available Scripts and Collectors
 
