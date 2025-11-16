@@ -12,16 +12,18 @@ The following sections provide detailed information on setup and usage.
 
 ---
 
-## System Requirements
-
-### Mandatory Requirements
+## System Requirements - Mandatory Requirements
 
 - **Windows PC** - This script only runs on Windows
 - **PowerShell** - Pre-installed on Windows
 - **Microsoft Excel** - Must be installed on the PC
 - **ImportExcel Module** - PowerShell module (installation instructions below)
 
-### First-Time Setup: Execution Policy
+
+
+## First-Time Setup
+
+### Step 1: Execution Policy
 
 Before running any PowerShell script, you need to allow script execution:
 
@@ -36,7 +38,43 @@ When prompted, respond with:
 
 > **Note:** This only affects the current PowerShell session and doesn't change your system-wide settings.
 
----
+
+
+### Step 2: Install ImportExcel Module
+
+**Check if already installed:**
+
+```powershell
+Get-Module -ListAvailable -Name ImportExcel
+```
+
+**If not installed:**
+
+```powershell
+Install-Module -Name ImportExcel -Scope CurrentUser -Force
+```
+
+
+
+### Step 3: Configure API Access
+
+Create a file named `.env` in the same folder as the script:
+
+```env
+API_KEY='your_actual_api_key'
+BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
+```
+
+**BASE_URL by Region:**
+
+- **US Region:** `https://api-us-east-1-cell-1.domotz.com/public-api/v1`
+- **EU Region:** `https://api-eu-west-1-cell-1.domotz.com/public-api/v1`
+
+> **Tip:** Get your API key from Domotz account settings. See [Domotz API Documentation](https://help.domotz.com/admin-global-features/domotz-api/) for details.
+
+
+
+
 
 ## Getting Help
 
@@ -69,45 +107,28 @@ The wizard will:
 
 ---
 
-## Quick Start
+## Quick Start: run the Wizard (Recommended)
 
-### Step 1: Install ImportExcel Module
 
-**Check if already installed:**
 
-```powershell
-Get-Module -ListAvailable -Name ImportExcel
-```
-
-**If not installed:**
-
-```powershell
-Install-Module -Name ImportExcel -Scope CurrentUser -Force
-```
-
-### Step 2: Configure API Access
-
-Create a file named `.env` in the same folder as the script:
-
-```env
-API_KEY='your_actual_api_key'
-BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
-```
-
-**BASE_URL by Region:**
-
-- **US Region:** `https://api-us-east-1-cell-1.domotz.com/public-api/v1`
-- **EU Region:** `https://api-eu-west-1-cell-1.domotz.com/public-api/v1`
-
-> **Tip:** Get your API key from Domotz account settings. See [Domotz API Documentation](https://help.domotz.com/admin-global-features/domotz-api/) for details.
-
-### Step 3: Run the Interactive Wizard (Recommended)
+Running the script **without any parameters** launches an interactive wizard that guides you through all required steps:
 
 ```powershell
 .\bulk_script_apply.ps1
 ```
 
 Follow the prompts to create and execute your first command!
+
+
+
+The wizard will:
+
+1. Show usage information
+2. Ask if you want help creating the first command
+3. Display available scripts (numbered for easy selection)
+4. Show available collectors (numbered)
+5. Build the correct command for you
+6. Offer to execute it immediately or let you run it manually
 
 ---
 
