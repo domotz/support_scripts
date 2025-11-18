@@ -1,3 +1,11 @@
+# DISCLAIMER: 
+# This file is provided "AS IS" and is intended solely for illustrative or educational purposes. 
+# Domotz makes no warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. Use of this file is at your own risk. 
+# By using this file, you acknowledge and agree that Domotz shall not be liable for any direct, indirect, incidental, or consequential damages or losses arising from its use.  
+# You further agree to indemnify, defend, and hold harmless Domotz and its affiliates from and against any claims, liabilities, damages, or expenses resulting from your use or misuse of this file. 
+#
+# In the event of any conflict between this disclaimer and any other agreement between you and Domotz, this disclaimer shall prevail with respect to the use of this file. 
+#
 # Domotz Netplan - Dynamic ip address (vlan config)
 # the NIC name has to be edited with yours - you can find it by using the issuing 'sudo ifconfig' or 'ip a'
 network:
