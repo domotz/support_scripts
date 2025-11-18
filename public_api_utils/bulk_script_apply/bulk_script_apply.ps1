@@ -194,7 +194,7 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
                 }
                 
                 $summaryMsg = "`nTotal: $($response.Count) custom driver(s)/script(s) found."
-                Write-Host $summaryMsg -ForegroundColor Cyan
+                Write-Host $summaryMsg -ForegroundColor Yellow
                 $summaryMsg | Out-File -FilePath $logFile -Append
             }
             
@@ -263,7 +263,7 @@ AVAILABLE COLLECTORS/AGENTS
                 }
                 
                 $agentSummaryMsg = "`nTotal: $($agents.Count) collector(s)/agent(s) found."
-                Write-Host $agentSummaryMsg -ForegroundColor Cyan
+                Write-Host $agentSummaryMsg -ForegroundColor Yellow
                 $agentSummaryMsg | Out-File -FilePath $logFile -Append
             }
             
@@ -421,7 +421,7 @@ IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - sample_period (must be >= minimal_sample_period)
 NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
-STEP 3: Apply the script to all devices in the Excel file
+STEP 3: Apply the script to all devices in the Excel file with _operation_ in ("DeleteAssociation", "Associate", "UpdateParameters"). _operation_ column is required.
 --------
 .\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
@@ -497,7 +497,7 @@ IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - sample_period (must be >= minimal_sample_period)
 NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
-STEP 3: Apply the script to all devices in the Excel file
+STEP 3: Apply the script to all devices in the Excel file with _operation_ in ("DeleteAssociation", "Associate", "UpdateParameters"). _operation_ column is required.
 --------
 .\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
@@ -532,8 +532,9 @@ Fix any skipped/failed rows and re-run bulk-apply to process them.
     
     # Ask if user wants help creating the command
     Write-Host ""
-    Write-Host "================================================================================`n" -ForegroundColor Cyan
-    $response = Read-Host "Do you want help creating the first command i.e. the create-excel command? (Y/N)"
+
+    Write-Host "Do you want help creating the first command i.e. the create-excel command? (Y/N): " -ForegroundColor Cyan -NoNewline
+    $response = Read-Host
     
     if ($response -notmatch '^[Yy]') {
         # User doesn't want help - show STEP 1 example and exit
@@ -562,7 +563,8 @@ With custom filename:
     
     # Ask for script selection
     Write-Host ""
-    $scriptNumber = Read-Host "Enter the number of the script you want to use"
+    Write-Host "Enter the INDEX (i.e. number w/o []) of the script you want to use: " -ForegroundColor Cyan -NoNewline
+    $scriptNumber = Read-Host
     
     # Validate script number
     if (-not ($scriptNumber -match '^\d+$') -or [int]$scriptNumber -lt 1 -or [int]$scriptNumber -gt $scripts.Count) {
@@ -584,7 +586,7 @@ With custom filename:
     
     # Ask for collector selection
     Write-Host ""
-    Write-Host "Enter the collector numbers you want to get devices from (comma-separated, e.g., 1,2,3):" -ForegroundColor Cyan
+    Write-Host "Enter the INDEX (i.e. number w/o []) of the collectors you want to get devices from (comma-separated, e.g., 1,2,3):" -ForegroundColor Cyan
     $collectorNumbers = Read-Host "Collector numbers"
     
     # Parse and validate collector numbers
@@ -612,15 +614,16 @@ With custom filename:
     
     # Display the command
     Write-Host ""
-    Write-Host "================================================================================`n" -ForegroundColor Cyan
+    Write-Host "================================================================================`n" -ForegroundColor Yellow
     Write-Host "STEP 1: Create Excel file with devices from your collectors" -ForegroundColor Yellow
     Write-Host "--------" -ForegroundColor Yellow
     Write-Host $command -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "================================================================================`n" -ForegroundColor Cyan
+    Write-Host "================================================================================`n" -ForegroundColor Yellow
     
     # Ask if user wants to run the command
-    $runResponse = Read-Host "Do you want to run this command now to create the Excel file? (Y/N)"
+    Write-Host "Do you want to run this command now to create the Excel file? (Y/N): " -ForegroundColor Cyan -NoNewline
+    $runResponse = Read-Host
     
     if ($runResponse -match '^[Yy]') {
         Write-Host "`nExecuting command..." -ForegroundColor Green
@@ -973,7 +976,8 @@ The following collector ID(s) are not valid:
         
         # Ask if user wants to correct the command
         Write-Host ""
-        $correctResponse = Read-Host "Do you want to correct the command with valid collector IDs? (Y/N)"
+        Write-Host "Do you want to correct the command with valid collector IDs? (Y/N): " -ForegroundColor Cyan -NoNewline
+        $correctResponse = Read-Host
         
         if ($correctResponse -notmatch '^[Yy]') {
             Write-Host "`nOperation cancelled. Please run the command again with valid collector IDs." -ForegroundColor Yellow
@@ -1000,7 +1004,7 @@ AVAILABLE COLLECTORS/AGENTS
         }
         
         Write-Host ""
-        Write-Host "Total: $($sortedCollectors.Count) collector(s)/agent(s) found." -ForegroundColor Cyan
+        Write-Host "Total: $($sortedCollectors.Count) collector(s)/agent(s) found." -ForegroundColor Yellow
         Write-Host ""
         
         # Ask for collector selection
@@ -1041,7 +1045,8 @@ AVAILABLE COLLECTORS/AGENTS
         Write-Host "================================================================================`n" -ForegroundColor Cyan
         
         # Ask if user wants to run the command
-        $runResponse = Read-Host "Do you want to run this command now? (Y/N)"
+        Write-Host "Do you want to run this command now? (Y/N): " -ForegroundColor Cyan -NoNewline
+        $runResponse = Read-Host
         
         if ($runResponse -notmatch '^[Yy]') {
             Write-Host "`nCommand not executed. You can copy and run it manually." -ForegroundColor Yellow
@@ -1131,7 +1136,8 @@ The script name '$scriptName' is not valid.
         
         # Ask if user wants to correct the command
         Write-Host ""
-        $correctResponse = Read-Host "Do you want to correct the command with a valid script name? (Y/N)"
+        Write-Host "Do you want to correct the command with a valid script name? (Y/N): " -ForegroundColor Cyan -NoNewline
+        $correctResponse = Read-Host
         
         if ($correctResponse -notmatch '^[Yy]') {
             Write-Host "`nOperation cancelled. Please run the command again with a valid script name." -ForegroundColor Yellow
@@ -1158,11 +1164,11 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
         }
         
         Write-Host ""
-        Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Cyan
+        Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
         Write-Host ""
         
         # Ask for script selection
-        Write-Host "Enter the number of the script you want to use:" -ForegroundColor Cyan
+        Write-Host "Enter the INDEX (w/o []) of the script you want to use:" -ForegroundColor Cyan
         $scriptNumber = Read-Host "Script number"
         
         # Validate script number
@@ -1193,7 +1199,8 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
         Write-Host "================================================================================`n" -ForegroundColor Cyan
         
         # Ask if user wants to run the command
-        $runResponse = Read-Host "Do you want to run this command now? (Y/N)"
+        Write-Host "Do you want to run this command now? (Y/N): " -ForegroundColor Cyan -NoNewline
+        $runResponse = Read-Host
         
         if ($runResponse -notmatch '^[Yy]') {
             Write-Host "`nCommand not executed. You can copy and run it manually." -ForegroundColor Yellow
@@ -1785,30 +1792,41 @@ before running the bulk-apply operation.
         $summaryMsg | Out-File -FilePath $logFile -Append
         
         # Auto-open the Excel file
-        $openMsg = "`nOpening Excel file for editing..."
-        Write-Host $openMsg -ForegroundColor Cyan
-        $openMsg | Out-File -FilePath $logFile -Append
+        Write-Host "`nOpening Excel file for editing. Fill the " -ForegroundColor Cyan -NoNewline
+        Write-Host "RED" -ForegroundColor Red -NoNewline
+        Write-Host " required fields in the Excel file." -ForegroundColor Cyan
+        "`nOpening Excel file for editing. Fill the RED required fields in the Excel file." | Out-File -FilePath $logFile -Append
         
         Start-Process $targetFilePath
+        
+        # Wait 10 seconds to allow Excel to fully open
+        Start-Sleep -Seconds 10
         
         # Display next step command
         # Use the actual PowerShell script filename (not the Domotz script name)
         $psName = Split-Path -Leaf $PSCommandPath
-        $nextStepMsg = @"
+        
+        # Build message with colored "RED" word
+        $nextStepHeader = @"
 
 ================================================================================
                               NEXT STEP
 ================================================================================
 
-After you finish editing the Excel file and filling in all required fields,
-run the following command to apply the script to all devices:
+"@
+        Write-Host $nextStepHeader -ForegroundColor Yellow
+        $nextStepHeader | Out-File -FilePath $logFile -Append
+        
+        # Write the simplified message
+        $nextStepMessage = @"
+After you finish, run the following command to apply the script to all devices:
 
 .\$psName -operation bulk-apply -script_name "$scriptName" -filename "$targetFileName"
 
 ================================================================================
 "@
-        Write-Host $nextStepMsg -ForegroundColor Yellow
-        $nextStepMsg | Out-File -FilePath $logFile -Append
+        Write-Host $nextStepMessage -ForegroundColor Yellow
+        $nextStepMessage | Out-File -FilePath $logFile -Append
         
         # Ask user if they want to run the bulk-apply command now
         Write-Host ""
@@ -1847,9 +1865,28 @@ The following commands were executed during this wizard session:
                 
                 $commandIndex = 1
                 foreach ($cmd in $script:wizardCommandHistory) {
-                    $cmdLine = "[$commandIndex] $cmd"
-                    Write-Host $cmdLine -ForegroundColor Yellow
-                    $cmdLine | Out-File -FilePath $logFile -Append
+                    # Determine command description based on operation type
+                    if ($cmd -match '-operation\s+create-excel') {
+                        $cmdDescription = "Create excel command executed:"
+                    }
+                    elseif ($cmd -match '-operation\s+bulk-apply') {
+                        $cmdDescription = "Bulk Apply excel command executed:"
+                    }
+                    else {
+                        $cmdDescription = "Command executed:"
+                    }
+                    
+                    Write-Host $cmdDescription -ForegroundColor Cyan
+                    $cmdDescription | Out-File -FilePath $logFile -Append
+                    Write-Host $cmd -ForegroundColor Yellow
+                    $cmd | Out-File -FilePath $logFile -Append
+                    
+                    # Add space between commands (except after the last one)
+                    if ($commandIndex -lt $script:wizardCommandHistory.Count) {
+                        Write-Host ""
+                        "" | Out-File -FilePath $logFile -Append
+                    }
+                    
                     $commandIndex++
                 }
                 
@@ -1929,7 +1966,7 @@ However, the following other Excel files were found in the folder:
 
 Do you want to continue using the default file '$DEFAULT_EXCEL_FILENAME'? (Y/N): 
 "@
-            Write-Host $confirmMsg -ForegroundColor Yellow -NoNewline
+            Write-Host $confirmMsg -ForegroundColor Cyan -NoNewline
             $confirmMsg | Out-File -FilePath $logFile -Append
             
             $response = Read-Host
@@ -2927,6 +2964,9 @@ Association #${index}:
             $paramValue = $device.$key
             
             if (-not [string]::IsNullOrWhiteSpace($paramValue)) {
+                # For logging: mask value if SECRET_TEXT
+                $displayValue = if ($paramInfo.value_type -eq "SECRET_TEXT") { "********" } else { $paramValue }
+                
                 # Check if parameter type is LIST
                 if ($paramInfo.value_type -eq "LIST") {
                     # Validate that the value is in array format: ["value1", "value2"] or []
@@ -2966,20 +3006,31 @@ Association #${index}:
                                     $validMsg | Out-File -FilePath $logFile -Append
                                 }
                                 else {
-                                    $paramValidationErrors += "Parameter '$key' (LIST): Value must be a JSON array like [`"value1`", `"value2`"], got: $paramValue"
+                                    $paramValidationErrors += "Parameter '$key' (LIST): Value must be a JSON array like [`"value1`", `"value2`"], got: $displayValue"
                                 }
                             }
                             catch {
-                                $paramValidationErrors += "Parameter '$key' (LIST): Invalid JSON array format. Expected [`"value1`", `"value2`"], got: $paramValue. Error: $_"
+                                $paramValidationErrors += "Parameter '$key' (LIST): Invalid JSON array format. Expected [`"value1`", `"value2`"], got: $displayValue. Error: $_"
                             }
                         }
                     }
                     else {
-                        $paramValidationErrors += "Parameter '$key' (LIST): Value must be in array format [`"value1`", `"value2`"], got: $paramValue"
+                        $paramValidationErrors += "Parameter '$key' (LIST): Value must be in array format [`"value1`", `"value2`"], got: $displayValue"
                     }
                 }
+                elseif ($paramInfo.value_type -eq "SECRET_TEXT") {
+                    # SECRET_TEXT parameter - use as string, already masked for display above
+                    $parametersArray += [PSCustomObject]@{
+                        custom_driver_parameter_id = $paramInfo.id
+                        value                      = $paramValue
+                    }
+                    
+                    $validMsg = "  [OK] Parameter '$key' validated as SECRET_TEXT: ********"
+                    Write-Host $validMsg -ForegroundColor Green
+                    $validMsg | Out-File -FilePath $logFile -Append
+                }
                 else {
-                    # Non-LIST parameter - use as string
+                    # Non-LIST, non-SECRET_TEXT parameter - use as string
                     $parametersArray += [PSCustomObject]@{
                         custom_driver_parameter_id = $paramInfo.id
                         value                      = $paramValue
@@ -3047,6 +3098,16 @@ Request Body:
                 $param = $parametersArray[$i]
                 $comma = if ($i -lt ($parametersArray.Count - 1)) { "," } else { "" }
                 
+                # Find parameter type from parameterMapping to check if it's SECRET_TEXT
+                $isSecretParam = $false
+                foreach ($key in $parameterMapping.Keys) {
+                    $paramInfo = $parameterMapping[$key]
+                    if ($paramInfo.id -eq $param.custom_driver_parameter_id -and $paramInfo.value_type -eq "SECRET_TEXT") {
+                        $isSecretParam = $true
+                        break
+                    }
+                }
+                
                 # Format value based on type
                 if ($param.value -is [System.Array] -or $param.value -is [System.Collections.ArrayList]) {
                     # LIST type - display as JSON array
@@ -3060,8 +3121,13 @@ Request Body:
                     $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": $valueJson }$comma"
                 }
                 else {
-                    # String type - display with quotes
-                    $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"$($param.value)`" }$comma"
+                    # String type - mask if SECRET_TEXT, otherwise display with quotes
+                    if ($isSecretParam) {
+                        $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"********`" }$comma"
+                    }
+                    else {
+                        $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"$($param.value)`" }$comma"
+                    }
                 }
                 
                 Write-Host $paramLine -ForegroundColor Cyan
@@ -3161,7 +3227,52 @@ Row Data Summary:
                 
                 # Debug: Log the actual JSON being sent (only if -debug parameter is set)
                 if ($debug) {
-                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API:`n$requestBody"
+                    # Create a masked copy for debug output (mask SECRET_TEXT parameters)
+                    $maskedParametersArray = @()
+                    foreach ($param in $parametersArray) {
+                        # Find if this parameter is SECRET_TEXT
+                        $isSecretParam = $false
+                        foreach ($key in $parameterMapping.Keys) {
+                            $paramInfo = $parameterMapping[$key]
+                            if ($paramInfo.id -eq $param.custom_driver_parameter_id -and $paramInfo.value_type -eq "SECRET_TEXT") {
+                                $isSecretParam = $true
+                                break
+                            }
+                        }
+                        
+                        if ($isSecretParam) {
+                            # Mask the secret value
+                            $maskedParametersArray += [PSCustomObject]@{
+                                custom_driver_parameter_id = $param.custom_driver_parameter_id
+                                value                      = "********"
+                            }
+                        }
+                        else {
+                            # Keep original value
+                            $maskedParametersArray += $param
+                        }
+                    }
+                    
+                    # Build masked request body for debug display
+                    if ($customDriverDetails.requires_credentials -eq $true) {
+                        $maskedRequestBodyObj = [PSCustomObject]@{
+                            parameters    = $maskedParametersArray
+                            sample_period = $samplePeriod
+                            credentials   = [PSCustomObject]@{
+                                username = $username
+                                password = "********"
+                            }
+                        }
+                    }
+                    else {
+                        $maskedRequestBodyObj = [PSCustomObject]@{
+                            parameters    = $maskedParametersArray
+                            sample_period = $samplePeriod
+                        }
+                    }
+                    
+                    $maskedRequestBody = $maskedRequestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
+                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API (SECRET_TEXT parameters masked):`n$maskedRequestBody"
                     Write-Host $debugMsg -ForegroundColor Gray
                     $debugMsg | Out-File -FilePath $logFile -Append
                 }
@@ -3308,7 +3419,52 @@ Row Data Summary:
                 
                 # Debug: Log the actual JSON being sent (only if -debug parameter is set)
                 if ($debug) {
-                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API:`n$requestBody"
+                    # Create a masked copy for debug output (mask SECRET_TEXT parameters)
+                    $maskedParametersArray = @()
+                    foreach ($param in $parametersArray) {
+                        # Find if this parameter is SECRET_TEXT
+                        $isSecretParam = $false
+                        foreach ($key in $parameterMapping.Keys) {
+                            $paramInfo = $parameterMapping[$key]
+                            if ($paramInfo.id -eq $param.custom_driver_parameter_id -and $paramInfo.value_type -eq "SECRET_TEXT") {
+                                $isSecretParam = $true
+                                break
+                            }
+                        }
+                        
+                        if ($isSecretParam) {
+                            # Mask the secret value
+                            $maskedParametersArray += [PSCustomObject]@{
+                                custom_driver_parameter_id = $param.custom_driver_parameter_id
+                                value                      = "********"
+                            }
+                        }
+                        else {
+                            # Keep original value
+                            $maskedParametersArray += $param
+                        }
+                    }
+                    
+                    # Build masked request body for debug display
+                    if ($customDriverDetails.requires_credentials -eq $true) {
+                        $maskedRequestBodyObj = [PSCustomObject]@{
+                            parameters    = $maskedParametersArray
+                            sample_period = $samplePeriod
+                            credentials   = [PSCustomObject]@{
+                                username = $username
+                                password = "********"
+                            }
+                        }
+                    }
+                    else {
+                        $maskedRequestBodyObj = [PSCustomObject]@{
+                            parameters    = $maskedParametersArray
+                            sample_period = $samplePeriod
+                        }
+                    }
+                    
+                    $maskedRequestBody = $maskedRequestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
+                    $debugMsg = "`n[DEBUG] Actual JSON Request Body being sent to API (SECRET_TEXT parameters masked):`n$maskedRequestBody"
                     Write-Host $debugMsg -ForegroundColor Gray
                     $debugMsg | Out-File -FilePath $logFile -Append
                 }
@@ -3609,50 +3765,71 @@ Parameter Mapping (Excel Column -> Custom Driver Parameter):
         }
     }
     
-    # Summary - Build dynamically based on results
-    $summaryLines = @()
-    $summaryLines += ""
-    $summaryLines += "================================================================================"
-    $summaryLines += "                           OPERATION SUMMARY                                    "
-    $summaryLines += "================================================================================"
-    $summaryLines += ""
-    $summaryLines += "Operation: $operation"
-    $summaryLines += "Script Name: $scriptName"
-    $summaryLines += "Script ID: $scriptID"
-    $summaryLines += "Total Devices Processed: $script:totalAttempts"
-    $summaryLines += "Successful: $script:successCount"
-    $summaryLines += "Failed: $script:failureCount"
-    $summaryLines += "Skipped: $script:skippedCount"
-    $summaryLines += ""
-    $summaryLines += "Successful Details:"
+    # Summary - Build dynamically based on results with colors
+    $summaryHeader = @"
+
+================================================================================
+                           OPERATION SUMMARY                                    
+================================================================================
+
+Operation: $operation
+Script Name: $scriptName
+Script ID: $scriptID
+Total Devices Processed: $script:totalAttempts
+Successful: $script:successCount
+Failed: $script:failureCount
+Skipped: $script:skippedCount
+
+"@
+    
+    # Write header (no color)
+    Write-Host $summaryHeader
+    $summaryHeader | Out-File -FilePath $logFile -Append
+    
+    # Write Successful Details in GREEN
+    Write-Host "Successful Details:" -ForegroundColor Green
+    "Successful Details:" | Out-File -FilePath $logFile -Append
     if ($script:successDetails.Count -gt 0) {
-        $script:successDetails | ForEach-Object { $summaryLines += "  - $_" }
+        $script:successDetails | ForEach-Object { 
+            Write-Host "  - $_" -ForegroundColor Green
+            "  - $_" | Out-File -FilePath $logFile -Append
+        }
     }
     else {
-        $summaryLines += "  (none)"
+        Write-Host "  (none)" -ForegroundColor Green
+        "  (none)" | Out-File -FilePath $logFile -Append
     }
     
-    # Only show failed details if there are failures
+    # Only show failed details if there are failures - in RED
     if ($script:failureCount -gt 0) {
-        $summaryLines += ""
-        $summaryLines += "Failed Details:"
-        $script:failureDetails | ForEach-Object { $summaryLines += "  - $_" }
+        Write-Host ""
+        "" | Out-File -FilePath $logFile -Append
+        Write-Host "Failed Details:" -ForegroundColor Red
+        "Failed Details:" | Out-File -FilePath $logFile -Append
+        $script:failureDetails | ForEach-Object { 
+            Write-Host "  - $_" -ForegroundColor Red
+            "  - $_" | Out-File -FilePath $logFile -Append
+        }
     }
     
-    # Only show skipped details if there are skipped rows
+    # Only show skipped details if there are skipped rows - in YELLOW
     if ($script:skippedCount -gt 0) {
-        $summaryLines += ""
-        $summaryLines += "Skipped Details (missing parameters - may be intentional):"
-        $script:skippedDetails | ForEach-Object { $summaryLines += "  - $_" }
+        Write-Host ""
+        "" | Out-File -FilePath $logFile -Append
+        Write-Host "Skipped Details (missing parameters - may be intentional):" -ForegroundColor Yellow
+        "Skipped Details (missing parameters - may be intentional):" | Out-File -FilePath $logFile -Append
+        $script:skippedDetails | ForEach-Object { 
+            Write-Host "  - $_" -ForegroundColor Yellow
+            "  - $_" | Out-File -FilePath $logFile -Append
+        }
     }
     
-    $summaryLines += ""
-    $summaryLines += "================================================================================"
-    
-    $summary = $summaryLines -join "`n"
-    
-    Write-Host "`n$summary"
-    $summary | Out-File -FilePath $logFile -Append
+    $summaryFooter = @"
+
+================================================================================
+"@
+    Write-Host $summaryFooter
+    $summaryFooter | Out-File -FilePath $logFile -Append
     
     # Auto-open the Excel file after bulk-apply completes
     if ([string]::IsNullOrEmpty($fileName)) {

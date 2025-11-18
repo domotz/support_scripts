@@ -236,6 +236,36 @@ Fix any skipped/failed rows and re-run `bulk-apply` to process them.
 - `_apply-result_` - Status (OK, Error, Skipped, Script already applied)
 - `_messages_` - Details or error messages
 
+### Parameter Types and Formatting
+
+When filling in script parameters in the Excel file, use the correct format based on the parameter type:
+
+**NUMBER Parameters:**
+
+- Enter as plain numbers without quotes
+- Example: `12345`
+
+**STRING Parameters:**
+
+- Enter text without quotes
+- Example: `test test` or `my device name`
+- Do NOT wrap in quotes like `"test test"`
+
+**SECRET_TEXT Parameters:**
+
+- Enter text without quotes (same format as STRING)
+- Example: `my secret password` or `api_key_12345`
+- These values will be **hidden in console output** during debug mode for security
+
+**LIST Parameters:**
+
+- Enter as a JSON array with values in square brackets
+- Example: `["value1","value2"]` or `["192.168.1.1","192.168.1.2"]`
+- Use double quotes around each value
+- Separate multiple values with commas
+
+> **Important:** Incorrect parameter formatting may cause errors during bulk-apply. Check the `_messages_` column if a row fails processing.
+
 ### Processing Logic
 
 When you run `bulk-apply`:
