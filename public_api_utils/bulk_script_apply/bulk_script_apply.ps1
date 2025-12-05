@@ -181,7 +181,7 @@ $apiKey = $env:API_KEY
 $baseURL = $env:BASE_URL.TrimEnd('/')  # Remove trailing slash if present
 
 # Define pagination constant for agent list retrieval
-$AGENT_PAGE_SIZE = 2
+$AGENT_PAGE_SIZE = 100
 
 # Validate base URL format
 try {
