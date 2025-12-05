@@ -61,6 +61,89 @@ if ($args -contains "/help" -or $args -contains "/?" -or $args -contains "/h") {
     $script:showHelpOnly = $true
 }
 
+# Helper function to convert seconds to human-readable sample period format
+function ConvertFrom-SamplePeriodSeconds {
+    param (
+        [int]$seconds
+    )
+    
+    $samplePeriodMapping = @(
+        @{ Label = "5 Minutes"; Seconds = 300 }
+        @{ Label = "10 Minutes"; Seconds = 600 }
+        @{ Label = "15 Minutes"; Seconds = 900 }
+        @{ Label = "30 Minutes"; Seconds = 1800 }
+        @{ Label = "1 Hour"; Seconds = 3600 }
+        @{ Label = "2 Hours"; Seconds = 7200 }
+        @{ Label = "6 Hours"; Seconds = 21600 }
+        @{ Label = "12 Hours"; Seconds = 43200 }
+        @{ Label = "24 Hours"; Seconds = 86400 }
+    )
+    
+    # Find exact match
+    $match = $samplePeriodMapping | Where-Object { $_.Seconds -eq $seconds }
+    if ($match) {
+        return $match.Label
+    }
+    
+    # If no exact match, return the original seconds value as string
+    return "$seconds"
+}
+
+# Helper function to convert human-readable sample period format to seconds
+function ConvertTo-SamplePeriodSeconds {
+    param (
+        [string]$samplePeriodString
+    )
+    
+    $samplePeriodMapping = @{
+        "5 Minutes"  = 300
+        "10 Minutes" = 600
+        "15 Minutes" = 900
+        "30 Minutes" = 1800
+        "1 Hour"     = 3600
+        "2 Hours"    = 7200
+        "6 Hours"    = 21600
+        "12 Hours"   = 43200
+        "24 Hours"   = 86400
+    }
+    
+    # Check if it's a human-readable format
+    if ($samplePeriodMapping.ContainsKey($samplePeriodString)) {
+        return $samplePeriodMapping[$samplePeriodString]
+    }
+    
+    # If not in mapping, try to parse as integer (backward compatibility)
+    try {
+        return [int]$samplePeriodString
+    }
+    catch {
+        # Default to 300 seconds if parsing fails
+        return 300
+    }
+}
+
+# Helper function to get all valid sample period options (greater than or equal to minimum)
+function Get-ValidSamplePeriods {
+    param (
+        [int]$minimalSamplePeriodSeconds
+    )
+    
+    $allSamplePeriods = @(
+        @{ Label = "5 Minutes"; Seconds = 300 }
+        @{ Label = "10 Minutes"; Seconds = 600 }
+        @{ Label = "15 Minutes"; Seconds = 900 }
+        @{ Label = "30 Minutes"; Seconds = 1800 }
+        @{ Label = "1 Hour"; Seconds = 3600 }
+        @{ Label = "2 Hours"; Seconds = 7200 }
+        @{ Label = "6 Hours"; Seconds = 21600 }
+        @{ Label = "12 Hours"; Seconds = 43200 }
+        @{ Label = "24 Hours"; Seconds = 86400 }
+    )
+    
+    # Filter to only include periods >= minimal sample period
+    return $allSamplePeriods | Where-Object { $_.Seconds -ge $minimalSamplePeriodSeconds }
+}
+
 # Function to load environment variables from .env file
 function Load-EnvFile {
     $envPath = Join-Path $PSScriptRoot ".env"
@@ -96,6 +179,9 @@ if (-not $env:API_KEY -or -not $env:BASE_URL) {
 # Define API Key and Base URL from environment variables and ensure proper formatting
 $apiKey = $env:API_KEY
 $baseURL = $env:BASE_URL.TrimEnd('/')  # Remove trailing slash if present
+
+# Define pagination constant for agent list retrieval
+$AGENT_PAGE_SIZE = 2
 
 # Validate base URL format
 try {
@@ -209,6 +295,56 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
     }
 }
 
+# Helper function to retrieve all agents with pagination
+function Get-AllAgents {
+    $allAgents = @()
+    $pageNumber = 0
+    
+    do {
+        try {
+            $agentEndpoint = "$baseURL/agent?page_size=$AGENT_PAGE_SIZE&page_number=$pageNumber"
+            $agentHeaders = @{
+                "X-Api-Key"    = $apiKey
+                "Accept"       = "application/json"
+                "Content-Type" = "application/json"
+            }
+            
+            if ($debug) {
+                $debugRequestMsg = "`n[DEBUG] Requesting agents - Page $pageNumber"
+                $debugRequestMsg += "`n[DEBUG] GET $agentEndpoint"
+                Write-Host $debugRequestMsg -ForegroundColor Cyan
+                $debugRequestMsg | Out-File -FilePath $logFile -Append
+            }
+            
+            $agents = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
+            
+            if ($debug) {
+                $debugResponseMsg = "[DEBUG] Response - Received $($agents.Count) agent(s) on page $pageNumber"
+                if ($agents.Count -gt 0) {
+                    $debugResponseMsg += "`n[DEBUG] Response Data: $($agents | ConvertTo-Json -Compress -Depth 2)"
+                }
+                Write-Host $debugResponseMsg -ForegroundColor Cyan
+                $debugResponseMsg | Out-File -FilePath $logFile -Append
+            }
+            
+            if ($agents.Count -eq 0) {
+                break
+            }
+            
+            $allAgents += $agents
+            $pageNumber++
+        }
+        catch {
+            $errorMsg = "`nERROR: Failed to retrieve agents on page $pageNumber - $_"
+            Write-Host $errorMsg -ForegroundColor Red
+            $errorMsg | Out-File -FilePath $logFile -Append
+            break
+        }
+    } while ($agents.Count -gt 0)
+    
+    return $allAgents
+}
+
 # Function to list only collectors/agents
 function List-Collectors {
     param (
@@ -217,64 +353,49 @@ function List-Collectors {
     )
     
     # PART 2: List Collectors/Agents
-    try {
-        $agentEndpoint = "$baseURL/agent"
-        $agentHeaders = @{
-            "X-Api-Key"    = $apiKey
-            "Accept"       = "application/json"
-            "Content-Type" = "application/json"
+    $agents = Get-AllAgents
+    
+    if ($agents.Count -eq 0) {
+        if (-not $silent) {
+            $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
+            Write-Host $noAgentsMsg -ForegroundColor Yellow
+            $noAgentsMsg | Out-File -FilePath $logFile -Append
         }
+        return @()
+    }
+    else {
+        $sortedAgents = $agents | Sort-Object display_name
         
-        $agents = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
-        
-        if ($agents.Count -eq 0) {
-            if (-not $silent) {
-                $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
-                Write-Host $noAgentsMsg -ForegroundColor Yellow
-                $noAgentsMsg | Out-File -FilePath $logFile -Append
-            }
-            return @()
-        }
-        else {
-            $sortedAgents = $agents | Sort-Object display_name
-            
-            if (-not $silent) {
-                $agentHeaderMsg = @"
+        if (-not $silent) {
+            $agentHeaderMsg = @"
 
 ================================================================================
 AVAILABLE COLLECTORS/AGENTS
 ================================================================================
 "@
-                Write-Host $agentHeaderMsg -ForegroundColor Green
-                $agentHeaderMsg | Out-File -FilePath $logFile -Append
-                
-                $index = 1
-                
-                foreach ($agent in $sortedAgents) {
-                    if ($numbered) {
-                        $agentLine = "  [$index] '$($agent.display_name)' (ID: $($agent.id))"
-                    }
-                    else {
-                        $agentLine = "  - '$($agent.display_name)' (ID: $($agent.id))"
-                    }
-                    Write-Host $agentLine
-                    $agentLine | Out-File -FilePath $logFile -Append
-                    $index++
+            Write-Host $agentHeaderMsg -ForegroundColor Green
+            $agentHeaderMsg | Out-File -FilePath $logFile -Append
+            
+            $index = 1
+            
+            foreach ($agent in $sortedAgents) {
+                if ($numbered) {
+                    $agentLine = "  [$index] '$($agent.display_name)' (ID: $($agent.id))"
                 }
-                
-                $agentSummaryMsg = "`nTotal: $($agents.Count) collector(s)/agent(s) found."
-                Write-Host $agentSummaryMsg -ForegroundColor Yellow
-                $agentSummaryMsg | Out-File -FilePath $logFile -Append
+                else {
+                    $agentLine = "  - '$($agent.display_name)' (ID: $($agent.id))"
+                }
+                Write-Host $agentLine
+                $agentLine | Out-File -FilePath $logFile -Append
+                $index++
             }
             
-            return $sortedAgents
+            $agentSummaryMsg = "`nTotal: $($agents.Count) collector(s)/agent(s) found."
+            Write-Host $agentSummaryMsg -ForegroundColor Yellow
+            $agentSummaryMsg | Out-File -FilePath $logFile -Append
         }
-    }
-    catch {
-        $agentErrorMsg = "`nERROR: Failed to retrieve collectors/agents - $_"
-        Write-Host $agentErrorMsg -ForegroundColor Red
-        $agentErrorMsg | Out-File -FilePath $logFile -Append
-        return @()
+        
+        return $sortedAgents
     }
 }
 
@@ -326,45 +447,31 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
     }
     
     # Get collectors data
-    try {
-        $agentEndpoint = "$baseURL/agent"
-        $agentHeaders = @{
-            "X-Api-Key"    = $apiKey
-            "Accept"       = "application/json"
-            "Content-Type" = "application/json"
-        }
-        
-        $collectors = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
-        
-        if ($collectors.Count -eq 0) {
-            $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
-            Write-Host $noAgentsMsg -ForegroundColor Yellow
-            $noAgentsMsg | Out-File -FilePath $logFile -Append
-        }
-        else {
-            $agentHeaderMsg = @"
+    $collectors = Get-AllAgents
+    
+    if ($collectors.Count -eq 0) {
+        $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
+        Write-Host $noAgentsMsg -ForegroundColor Yellow
+        $noAgentsMsg | Out-File -FilePath $logFile -Append
+    }
+    else {
+        $agentHeaderMsg = @"
 
 ================================================================================
 AVAILABLE COLLECTORS/AGENTS
 ================================================================================
 "@
-            Write-Host $agentHeaderMsg -ForegroundColor Green
-            $agentHeaderMsg | Out-File -FilePath $logFile -Append
-            
-            $sortedCollectors = $collectors | Sort-Object display_name
-            foreach ($collector in $sortedCollectors) {
-                $collectorLine = "  - $($collector.display_name)"
-                Write-Host $collectorLine
-                $collectorLine | Out-File -FilePath $logFile -Append
-            }
-            
-            Write-Host ""
+        Write-Host $agentHeaderMsg -ForegroundColor Green
+        $agentHeaderMsg | Out-File -FilePath $logFile -Append
+        
+        $sortedCollectors = $collectors | Sort-Object display_name
+        foreach ($collector in $sortedCollectors) {
+            $collectorLine = "  - $($collector.display_name)"
+            Write-Host $collectorLine
+            $collectorLine | Out-File -FilePath $logFile -Append
         }
-    }
-    catch {
-        $agentErrorMsg = "`nERROR: Failed to retrieve collectors/agents - $_"
-        Write-Host $agentErrorMsg -ForegroundColor Red
-        $agentErrorMsg | Out-File -FilePath $logFile -Append
+        
+        Write-Host ""
     }
     
     # Final separator
@@ -422,11 +529,17 @@ STEP 2: At the end of this previous operation the created file is opened. Edit t
 IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - username, password (if script requires credentials)
 - Script parameters (e.g., client_id, client_secret, etc.)
-- sample_period (must be >= minimal_sample_period)
+- sample_period (select from dropdown: 5 Minutes, 10 Minutes, 15 Minutes, 30 Minutes, 1 Hour, 2 Hours, 6 Hours, 12 Hours, 24 Hours)
+  Note: Only values >= minimal_sample_period are available in the dropdown
 NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
 STEP 3: Apply the script to all devices in the Excel file with _operation_ in ("DeleteAssociation", "Associate", "UpdateParameters"). _operation_ column is required.
 --------
+Operation types:
+- Associate: Create new association with script (sets parameters, sample_period, credentials)
+- UpdateParameters: Update only the parameters of an existing association (sample_period and credentials cannot be changed via this operation)
+- DeleteAssociation: Remove the script association from the device
+- To change sample_period or credentials, use DeleteAssociation then Associate, or manually update via Domotz UI
 .\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
 Or with specific file:
@@ -502,11 +615,17 @@ STEP 2: At the end of this previous operation the created file is opened. Edit t
 IMPORTANT: Fill in ALL required fields (marked in RED in the Excel header):
 - username, password (if script requires credentials)
 - Script parameters (e.g., client_id, client_secret, etc.)
-- sample_period (must be >= minimal_sample_period)
+- sample_period (select from dropdown: 5 Minutes, 10 Minutes, 15 Minutes, 30 Minutes, 1 Hour, 2 Hours, 6 Hours, 12 Hours, 24 Hours)
+  Note: Only values >= minimal_sample_period are available in the dropdown
 NOTE: Rows with missing required fields will be SKIPPED during bulk-apply
 
 STEP 3: Apply the script to all devices in the Excel file with _operation_ in ("DeleteAssociation", "Associate", "UpdateParameters"). _operation_ column is required.
 --------
+Operation types:
+- Associate: Create new association with script (sets parameters, sample_period, credentials)
+- UpdateParameters: Update only the parameters of an existing association (sample_period and credentials cannot be changed via this operation)
+- DeleteAssociation: Remove the script association from the device
+- To change sample_period or credentials, use DeleteAssociation then Associate, or manually update via Domotz UI
 .\$PS_SCRIPT_NAME.ps1 -operation bulk-apply -script_name "Poly Monitoring"
 
 Or with specific file:
@@ -1772,12 +1891,16 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
                 
                 # Add sample_period from existing association, or empty for user to fill
                 if ($existingAssociation) {
-                    $deviceRow["sample_period"] = $existingAssociation.sample_period
+                    # Convert sample_period from seconds to human-readable format
+                    $samplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $existingAssociation.sample_period
+                    $deviceRow["sample_period"] = $samplePeriodHumanReadable
                 }
                 else {
                     $deviceRow["sample_period"] = ""
                 }
-                $deviceRow["_minimal_sample_period_"] = $customDriverDetails.minimal_sample_period
+                # Convert minimal_sample_period from seconds to human-readable format
+                $minimalSamplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $customDriverDetails.minimal_sample_period
+                $deviceRow["_minimal_sample_period_"] = $minimalSamplePeriodHumanReadable
                 
                 # Add result tracking columns
                 # Mark devices with existing associations
@@ -2060,6 +2183,54 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             $validationDoneMsg = "  [OK] Added data validation with dropdown list to $($lastRow - 1) cells in _operation_ column"
             Write-Host $validationDoneMsg -ForegroundColor Green
             $validationDoneMsg | Out-File -FilePath $logFile -Append
+        }
+        
+        # Apply data validation to sample_period column
+        if ($columnMap.ContainsKey("sample_period")) {
+            $samplePeriodColNum = $columnMap["sample_period"]
+            
+            $sampleValidationMsg = "  [INFO] Adding data validation to sample_period column..."
+            Write-Host $sampleValidationMsg -ForegroundColor Cyan
+            $sampleValidationMsg | Out-File -FilePath $logFile -Append
+            
+            # Get minimal_sample_period from the script (in seconds)
+            $minimalSamplePeriodSeconds = $customDriverDetails.minimal_sample_period
+            
+            # Get valid time intervals (>= minimal_sample_period)
+            $validTimeIntervals = Get-ValidSamplePeriods -minimalSamplePeriodSeconds $minimalSamplePeriodSeconds
+            
+            if ($validTimeIntervals.Count -gt 0) {
+                # Convert minimal sample period to human-readable format for display
+                $minimalSamplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $minimalSamplePeriodSeconds
+                
+                # Apply data validation to all data rows (skip header row)
+                for ($row = 2; $row -le $lastRow; $row++) {
+                    $cell = $worksheet.Cells[$row, $samplePeriodColNum]
+                    
+                    # Create data validation for the cell
+                    $validation = $cell.DataValidation.AddListDataValidation()
+                    $validation.ShowErrorMessage = $true
+                    $validation.ErrorTitle = "Invalid Sample Period"
+                    $validation.Error = "Please select a valid sample period (>= $minimalSamplePeriodHumanReadable)"
+                    $validation.AllowBlank = $false
+                    
+                    # Add the valid time interval values as human-readable labels
+                    foreach ($interval in $validTimeIntervals) {
+                        $validation.Formula.Values.Add($interval.Label) | Out-Null
+                    }
+                }
+                
+                $intervalLabels = ($validTimeIntervals | ForEach-Object { $_.Label }) -join ", "
+                $sampleValidationDoneMsg = "  [OK] Added data validation to $($lastRow - 1) cells in sample_period column (valid values: $intervalLabels)"
+                Write-Host $sampleValidationDoneMsg -ForegroundColor Green
+                $sampleValidationDoneMsg | Out-File -FilePath $logFile -Append
+            }
+            else {
+                $minimalSamplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $minimalSamplePeriodSeconds
+                $noValidIntervalsMsg = "  [WARNING] No valid time intervals found for minimal_sample_period=$minimalSamplePeriodHumanReadable"
+                Write-Host $noValidIntervalsMsg -ForegroundColor Yellow
+                $noValidIntervalsMsg | Out-File -FilePath $logFile -Append
+            }
         }
         
         # Save and close
@@ -3102,6 +3273,66 @@ Association #${index}:
         $noColumnMsg | Out-File -FilePath $logFile -Append
     }
     
+    # CHECK: Warn user if DeleteAssociation operations exist
+    if ($hasOperationColumn) {
+        $deleteCount = 0
+        foreach ($device in $devices) {
+            $operation = $device."_operation_"
+            if ($operation -eq "DeleteAssociation") {
+                $deleteCount++
+            }
+        }
+        
+        if ($deleteCount -gt 0) {
+            $warningMsg = @"
+
+================================================================================
+                                  WARNING                                       
+================================================================================
+
+DETECTED $deleteCount DeleteAssociation operation(s) in the Excel file!
+
+These operations will PERMANENTLY DELETE script associations from devices.
+This action CANNOT BE UNDONE.
+
+================================================================================
+"@
+            Write-Host $warningMsg -ForegroundColor Red
+            $warningMsg | Out-File -FilePath $logFile -Append
+            
+            Write-Host "Do you want to continue with the bulk-apply operation? (Y/N): " -ForegroundColor Yellow -NoNewline
+            $confirmResponse = Read-Host
+            
+            if ($confirmResponse -notmatch '^[Yy]') {
+                $cancelMsg = "`n[INFO] Operation cancelled by user."
+                Write-Host $cancelMsg -ForegroundColor Yellow
+                $cancelMsg | Out-File -FilePath $logFile -Append
+                
+                # Open Excel file for review
+                if ([string]::IsNullOrEmpty($fileName)) {
+                    $fileName = $DEFAULT_EXCEL_FILENAME
+                }
+                if (-not $fileName.EndsWith(".xlsx")) {
+                    $fileName = "$fileName.xlsx"
+                }
+                $excelPath = Join-Path $PSScriptRoot $fileName
+                
+                if (Test-Path $excelPath) {
+                    $openMsg = "`nOpening Excel file for review..."
+                    Write-Host $openMsg -ForegroundColor Cyan
+                    $openMsg | Out-File -FilePath $logFile -Append
+                    Start-Process $excelPath
+                }
+                
+                return
+            }
+            
+            $proceedMsg = "`n[INFO] User confirmed - proceeding with bulk-apply operation including DeleteAssociation operations."
+            Write-Host $proceedMsg -ForegroundColor Green
+            $proceedMsg | Out-File -FilePath $logFile -Append
+        }
+    }
+    
     # Initialize counters
     $script:totalAttempts = 0
     $script:successCount = 0
@@ -3134,42 +3365,56 @@ Association #${index}:
             if ([string]::IsNullOrWhiteSpace($operation)) {
                 $rowNumber++
                 $skipOperationMsg = "[Row #$($rowNumber-1)] SKIPPED - No operation specified in _operation_ column (Collector: $($device.collector_id), IP: $($device.ip_address))"
-                Write-Host $skipOperationMsg -ForegroundColor Gray
+                # Only show in console if debug mode is enabled
+                if ($debug) {
+                    Write-Host $skipOperationMsg -ForegroundColor Gray
+                }
+                # Always log to file
                 $skipOperationMsg | Out-File -FilePath $logFile -Append
                 continue
             }
         }
+        else {
+            # Default to "Associate" for backward compatibility
+            $operation = "Associate"
+        }
         
         # EARLY CHECK: Validate required parameters before processing row
         # This prevents verbose output for rows that will be skipped anyway
+        # SKIP parameter validation for DeleteAssociation operations (no parameters needed)
         $missingRequiredParams = @()
         
-        # Check all script parameters
-        foreach ($paramName in $script_parameters_name) {
-            $paramValue = if ($device.PSObject.Properties.Name -contains $paramName) { $device.$paramName } else { "" }
-            if ([string]::IsNullOrWhiteSpace($paramValue)) {
-                $missingRequiredParams += $paramName
+        # Only validate parameters if operation is NOT DeleteAssociation
+        if ($operation -ne "DeleteAssociation") {
+            # Check all script parameters
+            foreach ($paramName in $script_parameters_name) {
+                $paramValue = if ($device.PSObject.Properties.Name -contains $paramName) { $device.$paramName } else { "" }
+                if ([string]::IsNullOrWhiteSpace($paramValue)) {
+                    $missingRequiredParams += $paramName
+                }
+            }
+            
+            # Check credentials if required
+            if ($customDriverDetails.requires_credentials -eq $true) {
+                if ([string]::IsNullOrWhiteSpace($device.username)) {
+                    $missingRequiredParams += "username"
+                }
+                if ([string]::IsNullOrWhiteSpace($device.password)) {
+                    $missingRequiredParams += "password"
+                }
             }
         }
         
-        # Check credentials if required
-        if ($customDriverDetails.requires_credentials -eq $true) {
-            if ([string]::IsNullOrWhiteSpace($device.username)) {
-                $missingRequiredParams += "username"
+        # Check sample_period (only if NOT DeleteAssociation)
+        if ($operation -ne "DeleteAssociation") {
+            if ($device.PSObject.Properties.Name -contains "sample_period") {
+                if ([string]::IsNullOrWhiteSpace($device.sample_period)) {
+                    $missingRequiredParams += "sample_period"
+                }
             }
-            if ([string]::IsNullOrWhiteSpace($device.password)) {
-                $missingRequiredParams += "password"
-            }
-        }
-        
-        # Check sample_period
-        if ($device.PSObject.Properties.Name -contains "sample_period") {
-            if ([string]::IsNullOrWhiteSpace($device.sample_period)) {
+            else {
                 $missingRequiredParams += "sample_period"
             }
-        }
-        else {
-            $missingRequiredParams += "sample_period"
         }
         
         # If any required parameters are missing, skip immediately without verbose output
@@ -3193,15 +3438,27 @@ Association #${index}:
         Write-Host $rowMessage -ForegroundColor Yellow
         $rowMessage | Out-File -FilePath $logFile -Append
         
-        # Output all columns from the Excel row for troubleshooting
-        $rowDetails = "Excel Row Content:"
-        Write-Host $rowDetails
-        $rowDetails | Out-File -FilePath $logFile -Append
-        
-        foreach ($property in $device.PSObject.Properties) {
-            $propertyLine = "  $($property.Name): $($property.Value)"
-            Write-Host $propertyLine -ForegroundColor White
-            $propertyLine | Out-File -FilePath $logFile -Append
+        # Output all columns from the Excel row for troubleshooting (only in debug mode)
+        if ($debug) {
+            $rowDetails = "Excel Row Content:"
+            Write-Host $rowDetails
+            $rowDetails | Out-File -FilePath $logFile -Append
+            
+            foreach ($property in $device.PSObject.Properties) {
+                $propertyLine = "  $($property.Name): $($property.Value)"
+                Write-Host $propertyLine -ForegroundColor White
+                $propertyLine | Out-File -FilePath $logFile -Append
+            }
+        }
+        else {
+            # Always log to file even when not in debug mode
+            $rowDetails = "Excel Row Content:"
+            $rowDetails | Out-File -FilePath $logFile -Append
+            
+            foreach ($property in $device.PSObject.Properties) {
+                $propertyLine = "  $($property.Name): $($property.Value)"
+                $propertyLine | Out-File -FilePath $logFile -Append
+            }
         }
         
         $rowNumber++
@@ -3260,131 +3517,197 @@ Association #${index}:
         }
         
         # STEP 6: Build parameters array for API call and validate LIST types
+        # SKIP parameter building for DeleteAssociation operations (no parameters needed)
         $parametersArray = @()
         $paramValidationErrors = @()
         
-        foreach ($key in $parameterMapping.Keys) {
-            $paramInfo = $parameterMapping[$key]
-            $paramValue = $device.$key
+        if ($operation -ne "DeleteAssociation") {
+            foreach ($key in $parameterMapping.Keys) {
+                $paramInfo = $parameterMapping[$key]
+                $paramValue = $device.$key
             
-            if (-not [string]::IsNullOrWhiteSpace($paramValue)) {
-                # For logging: mask value if SECRET_TEXT
-                $displayValue = if ($paramInfo.value_type -eq "SECRET_TEXT") { "********" } else { $paramValue }
+                if (-not [string]::IsNullOrWhiteSpace($paramValue)) {
+                    # For logging: mask value if SECRET_TEXT
+                    $displayValue = if ($paramInfo.value_type -eq "SECRET_TEXT") { "********" } else { $paramValue }
                 
-                # Check if parameter type is LIST
-                if ($paramInfo.value_type -eq "LIST") {
-                    # Validate that the value is in array format: ["value1", "value2"] or []
-                    $trimmedValue = $paramValue.Trim()
+                    # Check if parameter type is LIST
+                    if ($paramInfo.value_type -eq "LIST") {
+                        # Validate that the value is in array format: ["value1", "value2"] or []
+                        $trimmedValue = $paramValue.Trim()
                     
-                    # Check if it starts with [ and ends with ]
-                    if ($trimmedValue -match '^\s*\[.*\]\s*$') {
-                        # Check if it's an empty array
-                        if ($trimmedValue -match '^\s*\[\s*\]\s*$') {
-                            # Empty array - create explicit empty array with proper type
-                            $parametersArray += [PSCustomObject]@{
-                                custom_driver_parameter_id = $paramInfo.id
-                                value                      = [object[]]@()
-                            }
+                        # Check if it starts with [ and ends with ]
+                        if ($trimmedValue -match '^\s*\[.*\]\s*$') {
+                            # Check if it's an empty array
+                            if ($trimmedValue -match '^\s*\[\s*\]\s*$') {
+                                # Empty array - create explicit empty array with proper type
+                                $parametersArray += [PSCustomObject]@{
+                                    custom_driver_parameter_id = $paramInfo.id
+                                    value                      = [object[]]@()
+                                }
                             
-                            $validMsg = "  [OK] Parameter '$key' validated as LIST (empty array): $trimmedValue"
-                            Write-Host $validMsg -ForegroundColor Green
-                            $validMsg | Out-File -FilePath $logFile -Append
+                                $validMsg = "  [OK] Parameter '$key' validated as LIST (empty array): $trimmedValue"
+                                Write-Host $validMsg -ForegroundColor Green
+                                $validMsg | Out-File -FilePath $logFile -Append
+                            }
+                            else {
+                                # Try to parse as JSON array
+                                try {
+                                    $arrayValue = $trimmedValue | ConvertFrom-Json
+                                
+                                    # Verify it's actually an array
+                                    if ($arrayValue -is [System.Array] -or $arrayValue -is [System.Collections.ArrayList]) {
+                                        # Convert to a proper object array for correct JSON serialization
+                                        # Cast explicitly to [object[]] to avoid PowerShell adding metadata
+                                        $plainArray = [object[]]($arrayValue | ForEach-Object { $_ })
+                                        $parametersArray += [PSCustomObject]@{
+                                            custom_driver_parameter_id = $paramInfo.id
+                                            value                      = $plainArray
+                                        }
+                                    
+                                        $validMsg = "  [OK] Parameter '$key' validated as LIST: $trimmedValue"
+                                        Write-Host $validMsg -ForegroundColor Green
+                                        $validMsg | Out-File -FilePath $logFile -Append
+                                    }
+                                    else {
+                                        $paramValidationErrors += "Parameter '$key' (LIST): Value must be a JSON array like [`"value1`", `"value2`"], got: $displayValue"
+                                    }
+                                }
+                                catch {
+                                    $paramValidationErrors += "Parameter '$key' (LIST): Invalid JSON array format. Expected [`"value1`", `"value2`"], got: $displayValue. Error: $_"
+                                }
+                            }
                         }
                         else {
-                            # Try to parse as JSON array
-                            try {
-                                $arrayValue = $trimmedValue | ConvertFrom-Json
-                                
-                                # Verify it's actually an array
-                                if ($arrayValue -is [System.Array] -or $arrayValue -is [System.Collections.ArrayList]) {
-                                    # Convert to a proper object array for correct JSON serialization
-                                    # Cast explicitly to [object[]] to avoid PowerShell adding metadata
-                                    $plainArray = [object[]]($arrayValue | ForEach-Object { $_ })
-                                    $parametersArray += [PSCustomObject]@{
-                                        custom_driver_parameter_id = $paramInfo.id
-                                        value                      = $plainArray
-                                    }
-                                    
-                                    $validMsg = "  [OK] Parameter '$key' validated as LIST: $trimmedValue"
-                                    Write-Host $validMsg -ForegroundColor Green
-                                    $validMsg | Out-File -FilePath $logFile -Append
-                                }
-                                else {
-                                    $paramValidationErrors += "Parameter '$key' (LIST): Value must be a JSON array like [`"value1`", `"value2`"], got: $displayValue"
-                                }
-                            }
-                            catch {
-                                $paramValidationErrors += "Parameter '$key' (LIST): Invalid JSON array format. Expected [`"value1`", `"value2`"], got: $displayValue. Error: $_"
-                            }
+                            $paramValidationErrors += "Parameter '$key' (LIST): Value must be in array format [`"value1`", `"value2`"], got: $displayValue"
                         }
                     }
+                    elseif ($paramInfo.value_type -eq "SECRET_TEXT") {
+                        # SECRET_TEXT parameter - use as string, already masked for display above
+                        $parametersArray += [PSCustomObject]@{
+                            custom_driver_parameter_id = $paramInfo.id
+                            value                      = $paramValue
+                        }
+                    
+                        $validMsg = "  [OK] Parameter '$key' validated as SECRET_TEXT: ********"
+                        Write-Host $validMsg -ForegroundColor Green
+                        $validMsg | Out-File -FilePath $logFile -Append
+                    }
                     else {
-                        $paramValidationErrors += "Parameter '$key' (LIST): Value must be in array format [`"value1`", `"value2`"], got: $displayValue"
+                        # Non-LIST, non-SECRET_TEXT parameter - use as string
+                        $parametersArray += [PSCustomObject]@{
+                            custom_driver_parameter_id = $paramInfo.id
+                            value                      = $paramValue
+                        }
                     }
                 }
-                elseif ($paramInfo.value_type -eq "SECRET_TEXT") {
-                    # SECRET_TEXT parameter - use as string, already masked for display above
-                    $parametersArray += [PSCustomObject]@{
-                        custom_driver_parameter_id = $paramInfo.id
-                        value                      = $paramValue
-                    }
+            }
+            
+            # If there are validation errors, mark row as error and skip
+            if ($paramValidationErrors.Count -gt 0) {
+                $errorSummary = $paramValidationErrors -join '; '
+                $validationErrorMsg = "`n[VALIDATION ERROR] Parameter type mismatch:"
+                Write-Host $validationErrorMsg -ForegroundColor Red
+                $validationErrorMsg | Out-File -FilePath $logFile -Append
+                
+                foreach ($err in $paramValidationErrors) {
+                    $errMsg = "  - $err"
+                    Write-Host $errMsg -ForegroundColor Red
+                    $errMsg | Out-File -FilePath $logFile -Append
+                }
+                
+                $device."_apply-result_" = "Error"
+                $device._messages_ = "Validation error: $errorSummary"
+                
+                $script:failureCount++
+                $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - $errorSummary"
+                continue
+            }
+            
+            # STEP 6: Get sample_period from the row (only for Associate/UpdateParameters)
+            # Convert from human-readable format to seconds
+            $samplePeriod = 300  # Default value
+            if ($device.PSObject.Properties.Name -contains "sample_period") {
+                if (-not [string]::IsNullOrWhiteSpace($device.sample_period)) {
+                    # Convert human-readable format (e.g., "10 Minutes") to seconds
+                    $samplePeriod = ConvertTo-SamplePeriodSeconds -samplePeriodString $device.sample_period
                     
-                    $validMsg = "  [OK] Parameter '$key' validated as SECRET_TEXT: ********"
-                    Write-Host $validMsg -ForegroundColor Green
-                    $validMsg | Out-File -FilePath $logFile -Append
+                    # Debug: Log the conversion
+                    if ($debug) {
+                        $conversionMsg = "[DEBUG] sample_period conversion: '$($device.sample_period)' -> $samplePeriod seconds"
+                        Write-Host $conversionMsg -ForegroundColor Gray
+                        $conversionMsg | Out-File -FilePath $logFile -Append
+                    }
+                }
+            }
+            
+            # STEP 6a: Validate that sample_period >= minimal_sample_period
+            # Get minimal_sample_period from the row (in human-readable format)
+            $minimalSamplePeriodSeconds = $customDriverDetails.minimal_sample_period
+            if ($device.PSObject.Properties.Name -contains "_minimal_sample_period_") {
+                if (-not [string]::IsNullOrWhiteSpace($device._minimal_sample_period_)) {
+                    # Convert from human-readable format to seconds for comparison
+                    $minimalSamplePeriodSeconds = ConvertTo-SamplePeriodSeconds -samplePeriodString $device._minimal_sample_period_
+                }
+            }
+            
+            # Validate sample_period is >= minimal_sample_period
+            if ($samplePeriod -lt $minimalSamplePeriodSeconds) {
+                $minimalSamplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $minimalSamplePeriodSeconds
+                $samplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $samplePeriod
+                $validationErrorMsg = "`n[VALIDATION ERROR] sample_period ($samplePeriodHumanReadable) is less than minimal_sample_period ($minimalSamplePeriodHumanReadable)"
+                Write-Host $validationErrorMsg -ForegroundColor Red
+                $validationErrorMsg | Out-File -FilePath $logFile -Append
+                
+                $device."_apply-result_" = "Error"
+                $device._messages_ = "sample_period must be >= $minimalSamplePeriodHumanReadable"
+                
+                $script:failureCount++
+                $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - sample_period validation error"
+                continue
+            }
+            
+            # STEP 7: Display API call information for troubleshooting (only if debug mode)
+            if ($debug) {
+                # Mask API key for security
+                $maskedApiKey = "****" + $apiKey.Substring([Math]::Max(0, $apiKey.Length - 4))
+                
+                # Determine the correct endpoint and method based on operation type
+                # Note: This debug output runs before we have association_id for UpdateParameters
+                # So we'll show a placeholder for UpdateParameters operations
+                $debugEndpoint = ""
+                $debugMethod = ""
+                
+                if ($operation -eq "UpdateParameters") {
+                    $debugMethod = "PUT"
+                    $debugEndpoint = "$baseURL/custom-driver/$scriptID/association/{ASSOCIATION_ID - will be determined}"
                 }
                 else {
-                    # Non-LIST, non-SECRET_TEXT parameter - use as string
-                    $parametersArray += [PSCustomObject]@{
-                        custom_driver_parameter_id = $paramInfo.id
-                        value                      = $paramValue
-                    }
+                    # Associate operation (default)
+                    $debugMethod = "POST"
+                    $debugEndpoint = "$baseURL/custom-driver/$scriptID/agent/$($device.collector_id)/device/$deviceID/association"
                 }
-            }
-        }
-        
-        # If there are validation errors, mark row as error and skip
-        if ($paramValidationErrors.Count -gt 0) {
-            $errorSummary = $paramValidationErrors -join '; '
-            $validationErrorMsg = "`n[VALIDATION ERROR] Parameter type mismatch:"
-            Write-Host $validationErrorMsg -ForegroundColor Red
-            $validationErrorMsg | Out-File -FilePath $logFile -Append
             
-            foreach ($err in $paramValidationErrors) {
-                $errMsg = "  - $err"
-                Write-Host $errMsg -ForegroundColor Red
-                $errMsg | Out-File -FilePath $logFile -Append
-            }
-            
-            $device."_apply-result_" = "Error"
-            $device._messages_ = "Validation error: $errorSummary"
-            
-            $script:failureCount++
-            $script:failureDetails += "Collector ID: $($device.collector_id), Device IP: $($device.ip_address) - $errorSummary"
-            continue
-        }
-        
-        # STEP 6: Get sample_period from the row
-        $samplePeriod = 300  # Default value
-        if ($device.PSObject.Properties.Name -contains "sample_period") {
-            if (-not [string]::IsNullOrWhiteSpace($device.sample_period)) {
-                $samplePeriod = [int]$device.sample_period
-            }
-        }
-        
-        # STEP 7: Display API call information for troubleshooting (only if debug mode)
-        if ($debug) {
-            # Mask API key for security
-            $maskedApiKey = "****" + $apiKey.Substring([Math]::Max(0, $apiKey.Length - 4))
-            
-            $apiCallInfo = @"
+                $apiCallInfo = @"
 
 ================================================================================
                         API CALL INFORMATION (TROUBLESHOOTING)                        
 ================================================================================
 
+Operation Type: $operation
 API Endpoint:
-POST $baseURL/custom-driver/$scriptID/agent/$($device.collector_id)/device/$deviceID/association
+$debugMethod $debugEndpoint
+"@
+                
+                # Add note for UpdateParameters about association ID
+                if ($operation -eq "UpdateParameters") {
+                    $apiCallInfo += @"
+
+Note: The actual ASSOCIATION_ID will be determined by looking up the existing association for this device.
+      The complete endpoint URL will be shown below once the association ID is found.
+"@
+                }
+                
+                $apiCallInfo += @"
 
 Headers:
   Content-Type: application/json
@@ -3394,69 +3717,78 @@ Request Body:
 {
   "parameters": [
 "@
-            Write-Host $apiCallInfo -ForegroundColor Magenta
-            $apiCallInfo | Out-File -FilePath $logFile -Append
+                Write-Host $apiCallInfo -ForegroundColor Magenta
+                $apiCallInfo | Out-File -FilePath $logFile -Append
             
-            # Display parameters
-            for ($i = 0; $i -lt $parametersArray.Count; $i++) {
-                $param = $parametersArray[$i]
-                $comma = if ($i -lt ($parametersArray.Count - 1)) { "," } else { "" }
+                # Display parameters
+                for ($i = 0; $i -lt $parametersArray.Count; $i++) {
+                    $param = $parametersArray[$i]
+                    $comma = if ($i -lt ($parametersArray.Count - 1)) { "," } else { "" }
                 
-                # Find parameter type from parameterMapping to check if it's SECRET_TEXT
-                $isSecretParam = $false
-                foreach ($key in $parameterMapping.Keys) {
-                    $paramInfo = $parameterMapping[$key]
-                    if ($paramInfo.id -eq $param.custom_driver_parameter_id -and $paramInfo.value_type -eq "SECRET_TEXT") {
-                        $isSecretParam = $true
-                        break
+                    # Find parameter type from parameterMapping to check if it's SECRET_TEXT
+                    $isSecretParam = $false
+                    foreach ($key in $parameterMapping.Keys) {
+                        $paramInfo = $parameterMapping[$key]
+                        if ($paramInfo.id -eq $param.custom_driver_parameter_id -and $paramInfo.value_type -eq "SECRET_TEXT") {
+                            $isSecretParam = $true
+                            break
+                        }
                     }
-                }
                 
-                # Format value based on type
-                if ($param.value -is [System.Array] -or $param.value -is [System.Collections.ArrayList]) {
-                    # LIST type - display as JSON array
-                    if ($param.value.Count -eq 0) {
-                        # Empty array - explicitly show as []
-                        $valueJson = "[]"
+                    # Format value based on type
+                    if ($param.value -is [System.Array] -or $param.value -is [System.Collections.ArrayList]) {
+                        # LIST type - display as JSON array
+                        if ($param.value.Count -eq 0) {
+                            # Empty array - explicitly show as []
+                            $valueJson = "[]"
+                        }
+                        else {
+                            $valueJson = ($param.value | ConvertTo-Json -Compress)
+                        }
+                        $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": $valueJson }$comma"
                     }
                     else {
-                        $valueJson = ($param.value | ConvertTo-Json -Compress)
+                        # String type - mask if SECRET_TEXT, otherwise display with quotes
+                        if ($isSecretParam) {
+                            $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"********`" }$comma"
+                        }
+                        else {
+                            $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"$($param.value)`" }$comma"
+                        }
                     }
-                    $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": $valueJson }$comma"
-                }
-                else {
-                    # String type - mask if SECRET_TEXT, otherwise display with quotes
-                    if ($isSecretParam) {
-                        $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"********`" }$comma"
-                    }
-                    else {
-                        $paramLine = "    { `"custom_driver_parameter_id`": $($param.custom_driver_parameter_id), `"value`": `"$($param.value)`" }$comma"
-                    }
-                }
                 
-                Write-Host $paramLine -ForegroundColor Cyan
-                $paramLine | Out-File -FilePath $logFile -Append
-            }
+                    Write-Host $paramLine -ForegroundColor Cyan
+                    $paramLine | Out-File -FilePath $logFile -Append
+                }
             
-            $bodyEnd = @"
-  ],
-  "sample_period": $samplePeriod
+                $bodyEnd = @"
+  ]
 "@
             
-            # Add credentials to display if required
-            if ($customDriverDetails.requires_credentials -eq $true) {
-                $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
-                $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
-                $bodyEnd += @"
+                # For UpdateParameters, only parameters are sent (no sample_period or credentials)
+                # For Associate, include sample_period and credentials
+                if ($operation -ne "UpdateParameters") {
+                    $bodyEnd += @"
+,
+  "sample_period": $samplePeriod
+"@
+                    
+                    # Add credentials to display if required
+                    if ($customDriverDetails.requires_credentials -eq $true) {
+                        $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
+                        $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
+                        $bodyEnd += @"
 ,
   "credentials": {
     "username": "$username",
     "password": "********"
   }
 "@
-            }
+                    }
+                }
             
-            $bodyEnd += @"
+                $bodyEnd += @"
+
 }
 
 Row Data Summary:
@@ -3464,24 +3796,39 @@ Row Data Summary:
   - Device IP: $($device.ip_address)
   - Device ID (DEVICE_ID): $deviceID
   - Custom Script ID (CUSTOM_SCRIPT_ID): $scriptID
-  - Sample Period: $samplePeriod
-  - Parameters Count: $($parametersArray.Count)
 "@
             
-            if ($customDriverDetails.requires_credentials -eq $true) {
-                $bodyEnd += "`n  - Requires Credentials: YES (username and password included)"
-            }
-            else {
-                $bodyEnd += "`n  - Requires Credentials: NO"
-            }
+                # Only show sample_period for Associate operations
+                if ($operation -ne "UpdateParameters") {
+                    $bodyEnd += "`n  - Sample Period: $samplePeriod"
+                }
+                else {
+                    $bodyEnd += "`n  - Sample Period: Not applicable (UpdateParameters only updates parameters)"
+                }
+                
+                $bodyEnd += "`n  - Parameters Count: $($parametersArray.Count)"
             
-            $bodyEnd += @"
+                if ($operation -ne "UpdateParameters") {
+                    if ($customDriverDetails.requires_credentials -eq $true) {
+                        $bodyEnd += "`n  - Requires Credentials: YES (username and password included)"
+                    }
+                    else {
+                        $bodyEnd += "`n  - Requires Credentials: NO"
+                    }
+                }
+                else {
+                    $bodyEnd += "`n  - Requires Credentials: Not applicable (UpdateParameters only updates parameters)"
+                }
+            
+                $bodyEnd += @"
 
 ================================================================================
 "@
-            Write-Host $bodyEnd -ForegroundColor Magenta
-            $bodyEnd | Out-File -FilePath $logFile -Append
+                Write-Host $bodyEnd -ForegroundColor Magenta
+                $bodyEnd | Out-File -FilePath $logFile -Append
+            }
         }
+        # End of parameter building section (skipped for DeleteAssociation)
         
         # STEP 8: Make the API call based on operation type
         # Get operation type (default to "Associate" if not specified for backward compatibility)
@@ -3580,6 +3927,12 @@ Row Data Summary:
                     Write-Host $debugMsg -ForegroundColor Gray
                     $debugMsg | Out-File -FilePath $logFile -Append
                 }
+                
+                # Log sample_period value being sent
+                $samplePeriodHumanReadable = ConvertFrom-SamplePeriodSeconds -seconds $samplePeriod
+                $samplePeriodInfoMsg = "[INFO] Setting sample_period to: $samplePeriodHumanReadable ($samplePeriod seconds)"
+                Write-Host $samplePeriodInfoMsg -ForegroundColor Cyan
+                $samplePeriodInfoMsg | Out-File -FilePath $logFile -Append
                 
                 $callMessage = "`n[API CALL] Associating custom driver..."
                 Write-Host $callMessage -ForegroundColor Yellow
@@ -3681,13 +4034,22 @@ Row Data Summary:
                     $foundAssocMsg = "[INFO] Found existing association ID: $associationId for Device ID: $deviceID"
                     Write-Host $foundAssocMsg -ForegroundColor Cyan
                     $foundAssocMsg | Out-File -FilePath $logFile -Append
+                    
+                    # Display actual endpoint with association ID
+                    if ($debug) {
+                        $actualEndpointMsg = "[DEBUG] Actual API endpoint: PUT $baseURL/custom-driver/$scriptID/association/$associationId"
+                        Write-Host $actualEndpointMsg -ForegroundColor Gray
+                        $actualEndpointMsg | Out-File -FilePath $logFile -Append
+                    }
                 }
                 else {
                     # Association not found in pre-analysis, throw error
                     throw "No existing association found for this device. Cannot update non-existent association."
                 }
                 
-                # Build request body using PSCustomObject for proper JSON serialization (same as Associate)
+                # Build request body using PSCustomObject for proper JSON serialization
+                # NOTE: UpdateParameters endpoint ONLY accepts 'parameters' field (not sample_period or credentials)
+                # To update sample_period or credentials, use Associate operation or a separate API call
                 $apiEndpoint = "$baseURL/custom-driver/$scriptID/association/$associationId"
                 $headers = @{
                     "Accept"       = "application/json"
@@ -3695,29 +4057,14 @@ Row Data Summary:
                     "X-Api-Key"    = $apiKey
                 }
                 
-                if ($customDriverDetails.requires_credentials -eq $true) {
-                    $username = if ($device.PSObject.Properties.Name -contains "username") { $device.username } else { "" }
-                    $password = if ($device.PSObject.Properties.Name -contains "password") { $device.password } else { "" }
-                    
-                    $requestBodyObj = [PSCustomObject]@{
-                        parameters    = $parametersArray
-                        sample_period = $samplePeriod
-                        credentials   = [PSCustomObject]@{
-                            username = $username
-                            password = $password
-                        }
-                    }
-                    
-                    $credMsg = "[INFO] Including credentials in API request (username: $username)"
-                    Write-Host $credMsg -ForegroundColor Gray
-                    $credMsg | Out-File -FilePath $logFile -Append
+                # For UpdateParameters, only send parameters (sample_period and credentials are set during Associate)
+                $requestBodyObj = [PSCustomObject]@{
+                    parameters = $parametersArray
                 }
-                else {
-                    $requestBodyObj = [PSCustomObject]@{
-                        parameters    = $parametersArray
-                        sample_period = $samplePeriod
-                    }
-                }
+                
+                $updateNote = "[INFO] UpdateParameters operation: Only updating 'parameters' field (sample_period and credentials cannot be updated via this endpoint)"
+                Write-Host $updateNote -ForegroundColor Yellow
+                $updateNote | Out-File -FilePath $logFile -Append
                 
                 $requestBody = $requestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
                 
@@ -3750,21 +4097,9 @@ Row Data Summary:
                     }
                     
                     # Build masked request body for debug display
-                    if ($customDriverDetails.requires_credentials -eq $true) {
-                        $maskedRequestBodyObj = [PSCustomObject]@{
-                            parameters    = $maskedParametersArray
-                            sample_period = $samplePeriod
-                            credentials   = [PSCustomObject]@{
-                                username = $username
-                                password = "********"
-                            }
-                        }
-                    }
-                    else {
-                        $maskedRequestBodyObj = [PSCustomObject]@{
-                            parameters    = $maskedParametersArray
-                            sample_period = $samplePeriod
-                        }
+                    # For UpdateParameters, only include parameters (not sample_period or credentials)
+                    $maskedRequestBodyObj = [PSCustomObject]@{
+                        parameters = $maskedParametersArray
                     }
                     
                     $maskedRequestBody = $maskedRequestBodyObj | ConvertTo-Json -Depth 100 -Compress:$false
