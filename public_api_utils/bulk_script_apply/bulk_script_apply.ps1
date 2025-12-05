@@ -393,8 +393,9 @@ OPERATION TYPES
                               No additional parameters required
 
     create-excel : Create a new Excel file with device data from specified collectors
-                   Required: -script_name <script_name> -collector_ids <comma_separated_ids>
-                   Optional: -filename <excel_file_name>
+                   Required: -script_name <script_name>
+                   Optional: -collector_ids <comma_separated_ids> (if not specified, all collectors will be used)
+                             -filename <excel_file_name>
     
     bulk-apply   : Apply a Domotz custom script to multiple devices listed in Excel
                    Required: -script_name <script_name>
@@ -411,6 +412,9 @@ STEP 1: Create Excel file with devices from your collectors
 
 With custom filename:
 .\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+
+Extract from ALL collectors (no collector_ids specified):
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring"
 
 STEP 2: At the end of this previous operation the created file is opened. Edit the Excel file
 --------
@@ -469,8 +473,9 @@ OPERATION TYPES
                               No additional parameters required
 
     create-excel : Create a new Excel file with device data from specified collectors
-                   Required: -script_name <script_name> -collector_ids <comma_separated_ids>
-                   Optional: -filename <excel_file_name>
+                   Required: -script_name <script_name>
+                   Optional: -collector_ids <comma_separated_ids> (if not specified, all collectors will be used)
+                             -filename <excel_file_name>
     
     bulk-apply   : Apply a Domotz custom script to multiple devices listed in Excel
                    Required: -script_name <script_name>
@@ -487,6 +492,9 @@ STEP 1: Create Excel file with devices from your collectors
 
 With custom filename:
 .\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+
+Extract from ALL collectors (no collector_ids specified):
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring"
 
 STEP 2: At the end of this previous operation the created file is opened. Edit the Excel file
 --------
@@ -533,8 +541,13 @@ Fix any skipped/failed rows and re-run bulk-apply to process them.
     # Ask if user wants help creating the command
     Write-Host ""
 
-    Write-Host "Do you want help creating the first command i.e. the create-excel command? (Y/N): " -ForegroundColor Cyan -NoNewline
+    Write-Host "Do you want help creating the first command i.e. the create-excel command? (Y/N, default Y): " -ForegroundColor Cyan -NoNewline
     $response = Read-Host
+    
+    # Default to Y if empty
+    if ([string]::IsNullOrWhiteSpace($response)) {
+        $response = "Y"
+    }
     
     if ($response -notmatch '^[Yy]') {
         # User doesn't want help - show STEP 1 example and exit
@@ -546,6 +559,9 @@ STEP 1: Create Excel file with devices from your collectors
 
 With custom filename:
 .\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring" -collector_ids "313759" -filename "poly_devices"
+
+Extract from ALL collectors (no collector_ids specified):
+.\$PS_SCRIPT_NAME.ps1 -operation create-excel -script_name "Poly Monitoring"
 
 "@
         Write-Host $step1Example -ForegroundColor Yellow
@@ -561,19 +577,123 @@ With custom filename:
         exit
     }
     
-    # Ask for script selection
-    Write-Host ""
-    Write-Host "Enter the INDEX (i.e. number w/o []) of the script you want to use: " -ForegroundColor Cyan -NoNewline
-    $scriptNumber = Read-Host
+    # Ask for script selection (loop until valid selection)
+    $selectedScript = $null
     
-    # Validate script number
-    if (-not ($scriptNumber -match '^\d+$') -or [int]$scriptNumber -lt 1 -or [int]$scriptNumber -gt $scripts.Count) {
-        Write-Host "`nERROR: Invalid script number. Please enter a number between 1 and $($scripts.Count)." -ForegroundColor Red
-        exit
+    while (-not $selectedScript) {
+        Write-Host ""
+        Write-Host "Enter the INDEX [], script ID, or script NAME you want to use (or press Ctrl+C to stop): " -ForegroundColor Cyan -NoNewline
+        $scriptInput = Read-Host
+        
+        # Check if input is empty
+        if ([string]::IsNullOrWhiteSpace($scriptInput)) {
+            Write-Host "`nERROR: No input provided. Please make a valid choice." -ForegroundColor Red
+            Write-Host ""
+            # Re-display scripts list
+            $scripts = List-Scripts -numbered $true
+            continue
+        }
+        
+        # Try to determine what the user entered: INDEX, ID, or NAME
+        $tempSelectedScript = $null
+        
+        # Check if input is a number (could be INDEX or ID)
+        if ($scriptInput -match '^\d+$') {
+            $inputNumber = [int]$scriptInput
+            
+            # First check if it's a valid INDEX
+            if ($inputNumber -ge 1 -and $inputNumber -le $scripts.Count) {
+                $scriptByIndex = $scripts[$inputNumber - 1]
+                
+                # Also check if there's a script with this exact ID
+                $scriptById = $scripts | Where-Object { $_.id -eq $inputNumber }
+                
+                # Check for ambiguity between INDEX and ID
+                if ($scriptById -and $scriptById.id -ne $scriptByIndex.id) {
+                    # There's ambiguity - ask user to confirm
+                    Write-Host "`nAmbiguity detected! The number '$inputNumber' could mean:" -ForegroundColor Yellow
+                    Write-Host "  [A] INDEX $inputNumber - Script: '$($scriptByIndex.name)' (ID: $($scriptByIndex.id))" -ForegroundColor Yellow
+                    Write-Host "  [B] Script ID $inputNumber - Script: '$($scriptById.name)'" -ForegroundColor Yellow
+                    Write-Host ""
+                    Write-Host "Which one did you mean? (A/B): " -ForegroundColor Cyan -NoNewline
+                    $choice = Read-Host
+                    
+                    if ($choice -match '^[Aa]') {
+                        $tempSelectedScript = $scriptByIndex
+                    }
+                    elseif ($choice -match '^[Bb]') {
+                        $tempSelectedScript = $scriptById
+                    }
+                    else {
+                        Write-Host "`nERROR: Invalid choice." -ForegroundColor Red
+                        Write-Host ""
+                        # Re-display scripts list
+                        $scripts = List-Scripts -numbered $true
+                        continue
+                    }
+                }
+                else {
+                    # No ambiguity - use the index
+                    $tempSelectedScript = $scriptByIndex
+                }
+            }
+            else {
+                # Not a valid index, check if it's a script ID
+                $scriptById = $scripts | Where-Object { $_.id -eq $inputNumber }
+                if ($scriptById) {
+                    $tempSelectedScript = $scriptById
+                }
+            }
+        }
+        else {
+            # Input is not a number, treat it as a script NAME
+            # Try exact match first
+            $scriptByName = $scripts | Where-Object { $_.name -eq $scriptInput }
+            if ($scriptByName) {
+                $tempSelectedScript = $scriptByName
+            }
+            else {
+                # Try case-insensitive match
+                $scriptByName = $scripts | Where-Object { $_.name -ieq $scriptInput }
+                if ($scriptByName) {
+                    $tempSelectedScript = $scriptByName
+                }
+                else {
+                    # Try partial match
+                    $scriptByName = $scripts | Where-Object { $_.name -like "*$scriptInput*" }
+                    if ($scriptByName) {
+                        if ($scriptByName -is [array] -and $scriptByName.Count -gt 1) {
+                            Write-Host "`nERROR: Multiple scripts match '$scriptInput':" -ForegroundColor Red
+                            foreach ($s in $scriptByName) {
+                                Write-Host "  - '$($s.name)' (ID: $($s.id))" -ForegroundColor Yellow
+                            }
+                            Write-Host "`nPlease be more specific." -ForegroundColor Red
+                            Write-Host ""
+                            # Re-display scripts list
+                            $scripts = List-Scripts -numbered $true
+                            continue
+                        }
+                        $tempSelectedScript = $scriptByName
+                    }
+                }
+            }
+        }
+        
+        # Validate that a script was found
+        if (-not $tempSelectedScript) {
+            Write-Host "`nERROR: Could not find a script matching '$scriptInput'." -ForegroundColor Red
+            Write-Host "Please enter a valid INDEX (1-$($scripts.Count)), script ID, or script NAME." -ForegroundColor Red
+            Write-Host ""
+            # Re-display scripts list
+            $scripts = List-Scripts -numbered $true
+            continue
+        }
+        
+        # Valid selection made
+        $selectedScript = $tempSelectedScript
     }
     
-    $selectedScript = $scripts[[int]$scriptNumber - 1]
-    Write-Host "`nSelected script: '$($selectedScript.name)'" -ForegroundColor Green
+    Write-Host "`nSelected script: '$($selectedScript.name)' (ID: $($selectedScript.id))" -ForegroundColor Green
     
     # List collectors with numbering
     Write-Host ""
@@ -587,30 +707,45 @@ With custom filename:
     # Ask for collector selection
     Write-Host ""
     Write-Host "Enter the INDEX (i.e. number w/o []) of the collectors you want to get devices from (comma-separated, e.g., 1,2,3):" -ForegroundColor Cyan
-    $collectorNumbers = Read-Host "Collector numbers"
+    $collectorNumbers = Read-Host "Collector numbers (Enter for all)"
     
-    # Parse and validate collector numbers
+    # Check if user wants all collectors (empty input)
     $selectedCollectorIds = @()
-    $collectorNumberArray = $collectorNumbers -split ',' | ForEach-Object { $_.Trim() }
-    
-    foreach ($num in $collectorNumberArray) {
-        if (-not ($num -match '^\d+$') -or [int]$num -lt 1 -or [int]$num -gt $collectors.Count) {
-            Write-Host "`nERROR: Invalid collector number '$num'. Please enter numbers between 1 and $($collectors.Count)." -ForegroundColor Red
-            exit
-        }
-        $selectedCollectorIds += $collectors[[int]$num - 1].id
-    }
-    
-    Write-Host "`nSelected collectors:" -ForegroundColor Green
-    foreach ($num in $collectorNumberArray) {
-        $collector = $collectors[[int]$num - 1]
-        Write-Host "  - '$($collector.display_name)' (ID: $($collector.id))" -ForegroundColor Green
-    }
-    
-    # Build the command
-    $collectorIdsString = $selectedCollectorIds -join ','
     $psName = Split-Path -Leaf $PSCommandPath
-    $command = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIdsString`""
+    
+    if ([string]::IsNullOrWhiteSpace($collectorNumbers)) {
+        # Use all collectors
+        Write-Host "`nNo collector specified - using ALL collectors:" -ForegroundColor Yellow
+        foreach ($collector in $collectors) {
+            $selectedCollectorIds += $collector.id
+            Write-Host "  - '$($collector.display_name)' (ID: $($collector.id))" -ForegroundColor Green
+        }
+        
+        # Build the command without -collector_ids parameter
+        $command = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`""
+    }
+    else {
+        # Parse and validate collector numbers
+        $collectorNumberArray = $collectorNumbers -split ',' | ForEach-Object { $_.Trim() }
+        
+        foreach ($num in $collectorNumberArray) {
+            if (-not ($num -match '^\d+$') -or [int]$num -lt 1 -or [int]$num -gt $collectors.Count) {
+                Write-Host "`nERROR: Invalid collector number '$num'. Please enter numbers between 1 and $($collectors.Count)." -ForegroundColor Red
+                exit
+            }
+            $selectedCollectorIds += $collectors[[int]$num - 1].id
+        }
+        
+        Write-Host "`nSelected collectors:" -ForegroundColor Green
+        foreach ($num in $collectorNumberArray) {
+            $collector = $collectors[[int]$num - 1]
+            Write-Host "  - '$($collector.display_name)' (ID: $($collector.id))" -ForegroundColor Green
+        }
+        
+        # Build the command with -collector_ids parameter
+        $collectorIdsString = $selectedCollectorIds -join ','
+        $command = ".\$psName -operation create-excel -script_name `"$($selectedScript.name)`" -collector_ids `"$collectorIdsString`""
+    }
     
     # Display the command
     Write-Host ""
@@ -622,8 +757,13 @@ With custom filename:
     Write-Host "================================================================================`n" -ForegroundColor Yellow
     
     # Ask if user wants to run the command
-    Write-Host "Do you want to run this command now to create the Excel file? (Y/N): " -ForegroundColor Cyan -NoNewline
+    Write-Host "Do you want to run this command now to create the Excel file? (Y/N, default Y): " -ForegroundColor Cyan -NoNewline
     $runResponse = Read-Host
+    
+    # Default to Y if empty
+    if ([string]::IsNullOrWhiteSpace($runResponse)) {
+        $runResponse = "Y"
+    }
     
     if ($runResponse -match '^[Yy]') {
         Write-Host "`nExecuting command..." -ForegroundColor Green
@@ -635,7 +775,13 @@ With custom filename:
         # Set the script variables to execute the command
         $script:operation = "create-excel"
         $script:script_name = $selectedScript.name
-        $script:collector_ids = $collectorIdsString
+        # Set collector_ids only if specific collectors were selected (not all)
+        if ([string]::IsNullOrWhiteSpace($collectorNumbers)) {
+            $script:collector_ids = ""  # Empty means all collectors
+        }
+        else {
+            $script:collector_ids = $collectorIdsString
+        }
         
         # Continue with execution (don't exit)
         return
@@ -909,19 +1055,6 @@ function Create-Excel {
     Write-Host $validateMsg -ForegroundColor Cyan
     $validateMsg | Out-File -FilePath $logFile -Append
     
-    if ([string]::IsNullOrEmpty($collectorIds)) {
-        $errorMsg = "ERROR: -collector_ids parameter is mandatory for create-excel operation!"
-        Write-Host $errorMsg -ForegroundColor Red
-        $errorMsg | Out-File -FilePath $logFile -Append
-        throw "Missing required parameter: collector_ids"
-    }
-    
-    # Parse provided collector IDs
-    $collectorArray = $collectorIds -split ',' | ForEach-Object { $_.Trim() }
-    $providedMsg = "  Provided $($collectorArray.Count) collector ID(s): $($collectorArray -join ', ')"
-    Write-Host $providedMsg -ForegroundColor Cyan
-    $providedMsg | Out-File -FilePath $logFile -Append
-    
     # Retrieve valid collectors from API
     $validationMsg = "  Retrieving valid collectors from API..."
     Write-Host $validationMsg -ForegroundColor Cyan
@@ -936,30 +1069,57 @@ function Create-Excel {
         throw "No collectors available"
     }
     
-    # Build a hashtable of valid collector IDs for quick lookup
-    $validCollectorIds = @{}
-    foreach ($collector in $validCollectors) {
-        $validCollectorIds[$collector.id.ToString()] = $collector.display_name
-    }
-    
-    # Validate each provided collector ID
-    $invalidCollectors = @()
-    $validatedCollectors = @()
-    
-    foreach ($collectorId in $collectorArray) {
-        if ($validCollectorIds.ContainsKey($collectorId)) {
+    # Check if collector_ids is provided or empty (meaning all collectors)
+    if ([string]::IsNullOrEmpty($collectorIds)) {
+        # No collector IDs specified - use all collectors
+        $allMsg = "  No collector IDs specified - extracting devices from ALL collectors"
+        Write-Host $allMsg -ForegroundColor Yellow
+        $allMsg | Out-File -FilePath $logFile -Append
+        
+        $validatedCollectors = @()
+        foreach ($collector in $validCollectors) {
             $validatedCollectors += @{
-                id   = $collectorId
-                name = $validCollectorIds[$collectorId]
+                id   = $collector.id.ToString()
+                name = $collector.display_name
             }
         }
-        else {
-            $invalidCollectors += $collectorId
+        
+        $countMsg = "  Using all $($validatedCollectors.Count) collector(s)"
+        Write-Host $countMsg -ForegroundColor Cyan
+        $countMsg | Out-File -FilePath $logFile -Append
+    }
+    else {
+        # Parse provided collector IDs
+        $collectorArray = $collectorIds -split ',' | ForEach-Object { $_.Trim() }
+        $providedMsg = "  Provided $($collectorArray.Count) collector ID(s): $($collectorArray -join ', ')"
+        Write-Host $providedMsg -ForegroundColor Cyan
+        $providedMsg | Out-File -FilePath $logFile -Append
+        
+        # Build a hashtable of valid collector IDs for quick lookup
+        $validCollectorIds = @{}
+        foreach ($collector in $validCollectors) {
+            $validCollectorIds[$collector.id.ToString()] = $collector.display_name
+        }
+        
+        # Validate each provided collector ID
+        $invalidCollectors = @()
+        $validatedCollectors = @()
+        
+        foreach ($collectorId in $collectorArray) {
+            if ($validCollectorIds.ContainsKey($collectorId)) {
+                $validatedCollectors += @{
+                    id   = $collectorId
+                    name = $validCollectorIds[$collectorId]
+                }
+            }
+            else {
+                $invalidCollectors += $collectorId
+            }
         }
     }
     
-    # Report validation results
-    if ($invalidCollectors.Count -gt 0) {
+    # Report validation results (only if collector_ids was provided)
+    if ((-not [string]::IsNullOrEmpty($collectorIds)) -and ($invalidCollectors.Count -gt 0)) {
         $errorMsg = @"
 
 ================================================================================
@@ -1093,6 +1253,12 @@ AVAILABLE COLLECTORS/AGENTS
         }
     }
     
+    # Build collectorArray from validatedCollectors (needed for later processing)
+    $collectorArray = @()
+    foreach ($validated in $validatedCollectors) {
+        $collectorArray += $validated.id
+    }
+    
     # STEP 2: Get the script ID from the script name
     $scriptIdMsg = "`n[STEP 2] Validating custom script name..."
     Write-Host $scriptIdMsg -ForegroundColor Cyan
@@ -1167,18 +1333,156 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
         Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
         Write-Host ""
         
-        # Ask for script selection
-        Write-Host "Enter the INDEX (w/o []) of the script you want to use:" -ForegroundColor Cyan
-        $scriptNumber = Read-Host "Script number"
+        # Ask for script selection (loop until valid selection)
+        $selectedScript = $null
         
-        # Validate script number
-        if (-not ($scriptNumber -match '^\d+$') -or [int]$scriptNumber -lt 1 -or [int]$scriptNumber -gt $sortedScripts.Count) {
-            Write-Host "`nERROR: Invalid script number. Please enter a number between 1 and $($sortedScripts.Count)." -ForegroundColor Red
-            Write-Host "Operation cancelled." -ForegroundColor Yellow
-            return
+        while (-not $selectedScript) {
+            Write-Host "Enter the INDEX [], script ID, or script NAME you want to use (or press Ctrl+C to stop):" -ForegroundColor Cyan
+            $scriptInput = Read-Host "Script selection"
+            
+            # Check if input is empty
+            if ([string]::IsNullOrWhiteSpace($scriptInput)) {
+                Write-Host "`nERROR: No input provided. Please make a valid choice." -ForegroundColor Red
+                Write-Host ""
+                # Re-display scripts list
+                Write-Host $scriptHeaderMsg -ForegroundColor Green
+                $index = 1
+                foreach ($script in $sortedScripts) {
+                    $scriptLine = "  [$index] '$($script.name)' (ID: $($script.id))"
+                    Write-Host $scriptLine
+                    $index++
+                }
+                Write-Host ""
+                Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
+                Write-Host ""
+                continue
+            }
+            
+            # Try to determine what the user entered: INDEX, ID, or NAME
+            $tempSelectedScript = $null
+            
+            # Check if input is a number (could be INDEX or ID)
+            if ($scriptInput -match '^\d+$') {
+                $inputNumber = [int]$scriptInput
+                
+                # First check if it's a valid INDEX
+                if ($inputNumber -ge 1 -and $inputNumber -le $sortedScripts.Count) {
+                    $scriptByIndex = $sortedScripts[$inputNumber - 1]
+                    
+                    # Also check if there's a script with this exact ID
+                    $scriptById = $sortedScripts | Where-Object { $_.id -eq $inputNumber }
+                    
+                    # Check for ambiguity between INDEX and ID
+                    if ($scriptById -and $scriptById.id -ne $scriptByIndex.id) {
+                        # There's ambiguity - ask user to confirm
+                        Write-Host "`nAmbiguity detected! The number '$inputNumber' could mean:" -ForegroundColor Yellow
+                        Write-Host "  [A] INDEX $inputNumber - Script: '$($scriptByIndex.name)' (ID: $($scriptByIndex.id))" -ForegroundColor Yellow
+                        Write-Host "  [B] Script ID $inputNumber - Script: '$($scriptById.name)'" -ForegroundColor Yellow
+                        Write-Host ""
+                        Write-Host "Which one did you mean? (A/B): " -ForegroundColor Cyan -NoNewline
+                        $choice = Read-Host
+                        
+                        if ($choice -match '^[Aa]') {
+                            $tempSelectedScript = $scriptByIndex
+                        }
+                        elseif ($choice -match '^[Bb]') {
+                            $tempSelectedScript = $scriptById
+                        }
+                        else {
+                            Write-Host "`nERROR: Invalid choice." -ForegroundColor Red
+                            Write-Host ""
+                            # Re-display scripts list
+                            Write-Host $scriptHeaderMsg -ForegroundColor Green
+                            $index = 1
+                            foreach ($script in $sortedScripts) {
+                                $scriptLine = "  [$index] '$($script.name)' (ID: $($script.id))"
+                                Write-Host $scriptLine
+                                $index++
+                            }
+                            Write-Host ""
+                            Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
+                            Write-Host ""
+                            continue
+                        }
+                    }
+                    else {
+                        # No ambiguity - use the index
+                        $tempSelectedScript = $scriptByIndex
+                    }
+                }
+                else {
+                    # Not a valid index, check if it's a script ID
+                    $scriptById = $sortedScripts | Where-Object { $_.id -eq $inputNumber }
+                    if ($scriptById) {
+                        $tempSelectedScript = $scriptById
+                    }
+                }
+            }
+            else {
+                # Input is not a number, treat it as a script NAME
+                # Try exact match first
+                $scriptByName = $sortedScripts | Where-Object { $_.name -eq $scriptInput }
+                if ($scriptByName) {
+                    $tempSelectedScript = $scriptByName
+                }
+                else {
+                    # Try case-insensitive match
+                    $scriptByName = $sortedScripts | Where-Object { $_.name -ieq $scriptInput }
+                    if ($scriptByName) {
+                        $tempSelectedScript = $scriptByName
+                    }
+                    else {
+                        # Try partial match
+                        $scriptByName = $sortedScripts | Where-Object { $_.name -like "*$scriptInput*" }
+                        if ($scriptByName) {
+                            if ($scriptByName -is [array] -and $scriptByName.Count -gt 1) {
+                                Write-Host "`nERROR: Multiple scripts match '$scriptInput':" -ForegroundColor Red
+                                foreach ($s in $scriptByName) {
+                                    Write-Host "  - '$($s.name)' (ID: $($s.id))" -ForegroundColor Yellow
+                                }
+                                Write-Host "`nPlease be more specific." -ForegroundColor Red
+                                Write-Host ""
+                                # Re-display scripts list
+                                Write-Host $scriptHeaderMsg -ForegroundColor Green
+                                $index = 1
+                                foreach ($script in $sortedScripts) {
+                                    $scriptLine = "  [$index] '$($script.name)' (ID: $($script.id))"
+                                    Write-Host $scriptLine
+                                    $index++
+                                }
+                                Write-Host ""
+                                Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
+                                Write-Host ""
+                                continue
+                            }
+                            $tempSelectedScript = $scriptByName
+                        }
+                    }
+                }
+            }
+            
+            # Validate that a script was found
+            if (-not $tempSelectedScript) {
+                Write-Host "`nERROR: Could not find a script matching '$scriptInput'." -ForegroundColor Red
+                Write-Host "Please enter a valid INDEX (1-$($sortedScripts.Count)), script ID, or script NAME." -ForegroundColor Red
+                Write-Host ""
+                # Re-display scripts list
+                Write-Host $scriptHeaderMsg -ForegroundColor Green
+                $index = 1
+                foreach ($script in $sortedScripts) {
+                    $scriptLine = "  [$index] '$($script.name)' (ID: $($script.id))"
+                    Write-Host $scriptLine
+                    $index++
+                }
+                Write-Host ""
+                Write-Host "Total: $($sortedScripts.Count) custom driver(s)/script(s) found." -ForegroundColor Yellow
+                Write-Host ""
+                continue
+            }
+            
+            # Valid selection made
+            $selectedScript = $tempSelectedScript
         }
-        
-        $selectedScript = $sortedScripts[[int]$scriptNumber - 1]
         $psName = Split-Path -Leaf $PSCommandPath
         
         # Build the corrected command
@@ -3865,10 +4169,7 @@ switch ($operation) {
             Write-Host "ERROR: -script_name parameter is mandatory for create-excel operation!" -ForegroundColor Red
             Show-Usage
         }
-        if ([string]::IsNullOrEmpty($collector_ids)) {
-            Write-Host "ERROR: -collector_ids parameter is mandatory for create-excel operation!" -ForegroundColor Red
-            Show-Usage
-        }
+        # collector_ids is now optional - if not specified, all collectors will be used
         Create-Excel -scriptName $script_name -collectorIds $collector_ids -fileName $filename
     }
     "bulk-apply" {

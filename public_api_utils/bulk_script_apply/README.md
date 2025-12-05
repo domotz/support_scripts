@@ -124,10 +124,19 @@ Shows:
 
 ### Create Excel File with Devices
 
+**From specific collectors:**
+
 ```powershell
 .\bulk_script_apply.ps1 -operation create-excel `
     -script_name "Poly Monitoring" `
     -collector_ids "313759,312189"
+```
+
+**From ALL collectors in your account:**
+
+```powershell
+.\bulk_script_apply.ps1 -operation create-excel `
+    -script_name "Poly Monitoring"
 ```
 
 **With custom filename:**
@@ -141,7 +150,7 @@ Shows:
 
 **What happens:**
 
-- Retrieves all devices from specified collectors
+- Retrieves all devices from specified collectors (or all collectors if not specified)
 - Creates Excel file with device information
 - Adds columns for script parameters
 - Marks required fields in **RED text**
@@ -204,11 +213,11 @@ Fix any skipped/failed rows and re-run `bulk-apply` to process them.
 
 ## Available Operations
 
-| Operation                 | Description                      | Required Parameters                | Optional Parameters     |
-| ------------------------- | -------------------------------- | ---------------------------------- | ----------------------- |
-| `list-scripts-parameters` | List all scripts and collectors  | None                               | None                    |
-| `create-excel`            | Generate Excel file with devices | `-script_name`<br>`-collector_ids` | `-filename`             |
-| `bulk-apply`              | Apply script to devices in Excel | `-script_name`                     | `-filename`<br>`-debug` |
+| Operation                 | Description                      | Required Parameters | Optional Parameters                           |
+| ------------------------- | -------------------------------- | ------------------- | --------------------------------------------- |
+| `list-scripts-parameters` | List all scripts and collectors  | None                | None                                          |
+| `create-excel`            | Generate Excel file with devices | `-script_name`      | `-collector_ids` (if omitted, uses all)<br>`-filename` |
+| `bulk-apply`              | Apply script to devices in Excel | `-script_name`      | `-filename`<br>`-debug`                       |
 
 ---
 
@@ -387,13 +396,22 @@ The script detects if Excel is open and offers to close it automatically:
 
 ### Multiple Collectors
 
-Process devices from multiple collectors at once:
+**Process devices from specific collectors:**
 
 ```powershell
 .\bulk_script_apply.ps1 -operation create-excel `
     -script_name "Network Monitor" `
     -collector_ids "313759,312189,315000"
 ```
+
+**Process devices from ALL collectors in your account:**
+
+```powershell
+.\bulk_script_apply.ps1 -operation create-excel `
+    -script_name "Network Monitor"
+```
+
+> **Note:** Omitting `-collector_ids` automatically extracts devices from all collectors in your account.
 
 ### Custom Filenames
 
