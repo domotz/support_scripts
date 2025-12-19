@@ -1,0 +1,40 @@
+services:
+  grafana:
+    user: root
+    container_name: grafana
+    restart: unless-stopped
+    image: grafana/grafana-enterprise
+
+    ports:
+      - 3000:3000/tcp
+
+    volumes:
+      - ./data:/var/lib/grafana
+      - ./plugins/datasource-domotz/dist:/var/lib/grafana/plugins/domotz-grafanadomotz-datasource
+    networks:
+      - grafana-net
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clock-panel,yesoreyeram-infinity-datasource,alexanderzobnin-zabbix-app, volkovlabs-echarts-panel
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: domotz-grafanadomotz-datasource
+      GF_LOG_FILTERS: plugin.domotz-grafanadomotz-datasource:debug
+      GF_DATAPROXY_LOGGING: 1
+      GF_SERVER_ROOT_URL: http://my-ip/grafana
+      GF_SERVER_SERVE_FROM_SUB_PATH: true
+      GF_SERVER_DOMAIN: my-ip
+      GF_SERVER_HTTP_ADDR: 0.0.0.0
+      GF_SECURITY_COOKIE_SAMESITE: lax
+
+  nginx:
+    image: nginx:latest
+    container_name: grafana-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./conf/default-NO-SSL.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - grafana-net
+
+networks:
+  grafana-net:
+    driver: bridge
