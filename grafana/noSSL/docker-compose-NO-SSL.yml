@@ -3,7 +3,7 @@ services:
     user: root
     container_name: grafana
     restart: unless-stopped
-    image: grafana/grafana-enterprise
+    image: grafana/grafana-enterprise:11.5.10
 
     ports:
       - 3000:3000/tcp
