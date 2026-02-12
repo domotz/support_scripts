@@ -148,6 +148,59 @@ $DEFAULT_EXCEL_FILENAME = "$DEFAULT_EXCEL_BASENAME.xlsx"
 # Define log file (dynamic based on script name)
 $logFile = ".\$($PS_SCRIPT_NAME)_Log.txt"
 
+# Define pagination constant for agent list retrieval
+$AGENT_PAGE_SIZE = 100
+
+# Helper function to retrieve all agents with pagination
+function Get-AllAgents {
+    $allAgents = @()
+    $pageNumber = 0
+    
+    do {
+        try {
+            $agentEndpoint = "$baseURL/agent?page_size=$AGENT_PAGE_SIZE&page_number=$pageNumber"
+            $agentHeaders = @{
+                "X-Api-Key"    = $apiKey
+                "Accept"       = "application/json"
+                "Content-Type" = "application/json"
+            }
+            
+            if ($debug) {
+                $debugRequestMsg = "`n[DEBUG] Requesting agents - Page $pageNumber"
+                $debugRequestMsg += "`n[DEBUG] GET $agentEndpoint"
+                Write-Host $debugRequestMsg -ForegroundColor Cyan
+                $debugRequestMsg | Out-File -FilePath $logFile -Append
+            }
+            
+            $agents = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
+            
+            if ($debug) {
+                $debugResponseMsg = "[DEBUG] Response - Received $($agents.Count) agent(s) on page $pageNumber"
+                if ($agents.Count -gt 0) {
+                    $debugResponseMsg += "`n[DEBUG] Response Data: $($agents | ConvertTo-Json -Compress -Depth 2)"
+                }
+                Write-Host $debugResponseMsg -ForegroundColor Cyan
+                $debugResponseMsg | Out-File -FilePath $logFile -Append
+            }
+            
+            if ($agents.Count -eq 0) {
+                break
+            }
+            
+            $allAgents += $agents
+            $pageNumber++
+        }
+        catch {
+            $errorMsg = "`nERROR: Failed to retrieve agents on page $pageNumber - $_"
+            Write-Host $errorMsg -ForegroundColor Red
+            $errorMsg | Out-File -FilePath $logFile -Append
+            break
+        }
+    } while ($agents.Count -gt 0)
+    
+    return $allAgents
+}
+
 # Function to list collectors/agents
 function List-Collectors {
     param (
@@ -155,64 +208,50 @@ function List-Collectors {
         [bool]$silent = $false
     )
     
-    try {
-        $agentEndpoint = "$baseURL/agent"
-        $agentHeaders = @{
-            "X-Api-Key"    = $apiKey
-            "Accept"       = "application/json"
-            "Content-Type" = "application/json"
+    # Use pagination helper to get all agents
+    $agents = Get-AllAgents
+    
+    if ($agents.Count -eq 0) {
+        if (-not $silent) {
+            $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
+            Write-Host $noAgentsMsg -ForegroundColor Yellow
+            $noAgentsMsg | Out-File -FilePath $logFile -Append
         }
+        return @()
+    }
+    else {
+        $sortedAgents = $agents | Sort-Object display_name
         
-        $agents = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
-        
-        if ($agents.Count -eq 0) {
-            if (-not $silent) {
-                $noAgentsMsg = "`nNo collectors/agents found in your Domotz account."
-                Write-Host $noAgentsMsg -ForegroundColor Yellow
-                $noAgentsMsg | Out-File -FilePath $logFile -Append
-            }
-            return @()
-        }
-        else {
-            $sortedAgents = $agents | Sort-Object display_name
-            
-            if (-not $silent) {
-                $agentHeaderMsg = @"
+        if (-not $silent) {
+            $agentHeaderMsg = @"
 
 ================================================================================
 AVAILABLE COLLECTORS/AGENTS
 ================================================================================
 "@
-                Write-Host $agentHeaderMsg -ForegroundColor Green
-                $agentHeaderMsg | Out-File -FilePath $logFile -Append
-                
-                $index = 1
-                
-                foreach ($agent in $sortedAgents) {
-                    if ($numbered) {
-                        $agentLine = "  [$index] '$($agent.display_name)' (ID: $($agent.id))"
-                    }
-                    else {
-                        $agentLine = "  - '$($agent.display_name)' (ID: $($agent.id))"
-                    }
-                    Write-Host $agentLine
-                    $agentLine | Out-File -FilePath $logFile -Append
-                    $index++
+            Write-Host $agentHeaderMsg -ForegroundColor Green
+            $agentHeaderMsg | Out-File -FilePath $logFile -Append
+            
+            $index = 1
+            
+            foreach ($agent in $sortedAgents) {
+                if ($numbered) {
+                    $agentLine = "  [$index] '$($agent.display_name)' (ID: $($agent.id))"
                 }
-                
-                $agentSummaryMsg = "`nTotal: $($agents.Count) collector(s)/agent(s) found."
-                Write-Host $agentSummaryMsg -ForegroundColor Yellow
-                $agentSummaryMsg | Out-File -FilePath $logFile -Append
+                else {
+                    $agentLine = "  - '$($agent.display_name)' (ID: $($agent.id))"
+                }
+                Write-Host $agentLine
+                $agentLine | Out-File -FilePath $logFile -Append
+                $index++
             }
             
-            return $sortedAgents
+            $agentSummaryMsg = "`nTotal: $($agents.Count) collector(s)/agent(s) found."
+            Write-Host $agentSummaryMsg -ForegroundColor Yellow
+            $agentSummaryMsg | Out-File -FilePath $logFile -Append
         }
-    }
-    catch {
-        $agentErrorMsg = "`nERROR: Failed to retrieve collectors/agents - $_"
-        Write-Host $agentErrorMsg -ForegroundColor Red
-        $agentErrorMsg | Out-File -FilePath $logFile -Append
-        return @()
+        
+        return $sortedAgents
     }
 }
 
@@ -498,31 +537,23 @@ function Extract-Data {
         $devTypesMsg | Out-File -FilePath $logFile -Append
     }
     
-    # STEP 1: Get all collectors from API
+    # STEP 1: Get all collectors from API (with pagination)
     $step1Msg = "`n[STEP 1] Retrieving collectors from Domotz API..."
     Write-Host $step1Msg -ForegroundColor Cyan
     $step1Msg | Out-File -FilePath $logFile -Append
     
-    try {
-        $agentEndpoint = "$baseURL/agent"
-        $agentHeaders = @{
-            "X-Api-Key"    = $apiKey
-            "Accept"       = "application/json"
-            "Content-Type" = "application/json"
-        }
-        
-        $allCollectors = Invoke-RestMethod -Uri $agentEndpoint -Method Get -Headers $agentHeaders
-        
-        $foundMsg = "[OK] Retrieved $($allCollectors.Count) collector(s) from API"
-        Write-Host $foundMsg -ForegroundColor Green
-        $foundMsg | Out-File -FilePath $logFile -Append
-    }
-    catch {
-        $errorMsg = "ERROR: Failed to retrieve collectors from API - $_"
+    $allCollectors = Get-AllAgents
+    
+    if ($allCollectors.Count -eq 0) {
+        $errorMsg = "ERROR: No collectors found or failed to retrieve collectors from API"
         Write-Host $errorMsg -ForegroundColor Red
         $errorMsg | Out-File -FilePath $logFile -Append
         return
     }
+    
+    $foundMsg = "[OK] Retrieved $($allCollectors.Count) collector(s) from API"
+    Write-Host $foundMsg -ForegroundColor Green
+    $foundMsg | Out-File -FilePath $logFile -Append
     
     # STEP 2: Filter collectors if collector_ids parameter is provided
     $step2Msg = "`n[STEP 2] Filtering collectors..."
