@@ -1,0 +1,24 @@
+# Sensitive files - DO NOT COMMIT
+.env
+
+# Log files
+*.log
+bulk_script_apply_Log.txt
+
+# Excel/CSV data files (may contain sensitive information)
+*.xlsx
+*.csv
+!domotz_automation_scripts_mass_apply_TEMPLATE.csv
+
+# PowerShell temporary files
+*.ps1~
+
+# Windows thumbnail cache
+Thumbs.db
+
+# macOS
+.DS_Store
+
+# Old
+Old/
+

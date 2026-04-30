@@ -1,0 +1,13 @@
+# Domotz API Configuration
+# Copy this file to .env and fill in your actual values
+
+# Your Domotz API Key
+# e.g.
+API_KEY='your_api_key_here'
+
+# Domotz API Base URL (adjust based on your region)
+# US East: BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
+# EU: BASE_URL='https://api-eu-west-1-cell-1.domotz.com/public-api/v1'
+# e.g.
+BASE_URL='https://api-us-east-1-cell-1.domotz.com/public-api/v1'
+
