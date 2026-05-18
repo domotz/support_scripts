@@ -1818,7 +1818,7 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
     $excelHeaders += "_messages_"
     
     # Add additional device information columns
-    $excelHeaders += "_device-status_"
+    $excelHeaders += "_collector-device-status_"
     $excelHeaders += "_vendor_"
     $excelHeaders += "_model_"
     $excelHeaders += "_room_"
@@ -1854,6 +1854,7 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             }
             $collectorDetails = Invoke-RestMethod -Uri $collectorEndpoint -Method Get -Headers $collectorHeaders
             $collectorName = $collectorDetails.display_name
+            $collectorStatus = if ($null -ne $collectorDetails.status.value) { [string]$collectorDetails.status.value } elseif ($collectorDetails.status) { [string]$collectorDetails.status } else { "UNKNOWN" }
             
             # Get devices for this collector
             $deviceList = Get-DeviceList -collectorID $collectorId
@@ -1974,6 +1975,8 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
                 # Store IP address as-is, will format as text in Excel
                 $deviceRow["ip_address"] = if ($device.ip_addresses -and $device.ip_addresses.Count -gt 0) { $device.ip_addresses[0] } else { "" }
                 $deviceRow["_device_id_"] = $device.id
+                $deviceStatus = if ([string]::IsNullOrWhiteSpace($device.status)) { "DOWN" } else { [string]$device.status }
+                $deviceRow["_collector-device-status_"] = "$collectorStatus/$deviceStatus"
                 $deviceRow["_script_type_"] = $customDriverDetails.type
                 $deviceRow["_operation_"] = ""
                 
@@ -2058,7 +2061,6 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
                 }
                 
                 # Add device details
-                $deviceRow["_device-status_"] = if ($device.status) { $device.status } else { "" }
                 $deviceRow["_vendor_"] = if ($device.vendor) { $device.vendor } else { "" }
                 $deviceRow["_model_"] = if ($device.model) { $device.model } else { "" }
                 $deviceRow["_room_"] = if ($device.details.room) { $device.details.room } else { "" }
@@ -2299,6 +2301,25 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             }
         }
 
+        # Apply color coding to _collector-device-status_ column: OFFLINE = red, ONLINE = green
+        if ($columnMap.ContainsKey("_collector-device-status_")) {
+            $collDevStatusCol = $columnMap["_collector-device-status_"]
+            $collDevStatusCount = 0
+            for ($row = 2; $row -le $lastRow; $row++) {
+                $cell = $worksheet.Cells[$row, $collDevStatusCol]
+                $cellValue = [string]$cell.Value
+                if ($cellValue -match "OFFLINE|DOWN") {
+                    $cell.Style.Font.Color.SetColor([System.Drawing.Color]::Red)
+                } elseif ($cellValue -ne "") {
+                    $cell.Style.Font.Color.SetColor([System.Drawing.Color]::FromArgb(0, 128, 0))
+                }
+                $collDevStatusCount++
+            }
+            $collDevColorMsg = "  [INFO] Applied color coding to $collDevStatusCount _collector-device-status_ cells (OFFLINE=red, ONLINE=green)"
+            Write-Host $collDevColorMsg -ForegroundColor Cyan
+            $collDevColorMsg | Out-File -FilePath $logFile -Append
+        }
+
         # Apply YELLOW conditional formatting to secret/credential cells for rows with existing associations.
         # Rule: ISBLANK(cell) → yellow background. Auto-clears when the user fills in the value.
         $yellowColumns = @()
@@ -2347,32 +2368,110 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             }
         }
 
-        # Apply data validation to _operation_ column
+        # Apply yellow highlight to _operation_ column only for rows with existing associations — auto-clears when filled
+        if ($columnMap.ContainsKey("_operation_") -and $columnMap.ContainsKey("_apply-result_")) {
+            $opColNum       = $columnMap["_operation_"]
+            $opResultColNum = $columnMap["_apply-result_"]
+            $opYellowColor  = [System.Drawing.Color]::FromArgb(255, 255, 0)
+            $opYellowCount  = 0
+            for ($row = 2; $row -le $lastRow; $row++) {
+                if ($worksheet.Cells[$row, $opResultColNum].Value -eq "Script already applied") {
+                    $opCell = $worksheet.Cells[$row, $opColNum]
+                    $opCell.Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
+                    $opCell.Style.Fill.BackgroundColor.SetColor($opYellowColor)
+                    $opCf = $worksheet.ConditionalFormatting.AddExpression(
+                        (New-Object OfficeOpenXml.ExcelAddress($opCell.Address))
+                    )
+                    $opCf.Formula = "LEN($($opCell.Address))>0"
+                    $opCf.Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
+                    $opCf.Style.Fill.BackgroundColor.Color = [System.Drawing.Color]::White
+                    $opYellowCount++
+                }
+            }
+            if ($opYellowCount -gt 0) {
+                $opYellowMsg = "  [INFO] Applied yellow highlight to $opYellowCount _operation_ cells (existing associations - auto-clears when filled)"
+                Write-Host $opYellowMsg -ForegroundColor Cyan
+                $opYellowMsg | Out-File -FilePath $logFile -Append
+            }
+        }
+
+        # Dynamic yellow CF: when _operation_ is filled, highlight mandatory parameter cells still empty
         if ($columnMap.ContainsKey("_operation_")) {
-            $operationColNum = $columnMap["_operation_"]
-            
-            $validationMsg = "  [INFO] Adding data validation to _operation_ column..."
+            $opColLetter = ($worksheet.Cells[1, $columnMap["_operation_"]].Address -replace '\d+', '')
+            $mandatoryParamCols = @()
+            if ($customDriverDetails.requires_credentials -eq $true) {
+                $mandatoryParamCols += "username"
+                $mandatoryParamCols += "password"
+            }
+            foreach ($p in $parameterNamesWithType) { $mandatoryParamCols += $p }
+            $mandatoryParamCols += "sample_period"
+
+            $dynYellowCount = 0
+            foreach ($mandCol in $mandatoryParamCols) {
+                if ($columnMap.ContainsKey($mandCol)) {
+                    $mandColLetter = ($worksheet.Cells[1, $columnMap[$mandCol]].Address -replace '\d+', '')
+                    $rangeAddress = "${mandColLetter}2:${mandColLetter}${lastRow}"
+                    $cfDyn = $worksheet.ConditionalFormatting.AddExpression(
+                        (New-Object OfficeOpenXml.ExcelAddress($rangeAddress))
+                    )
+                    $cfDyn.Formula = "AND(`$${opColLetter}2<>"""",${mandColLetter}2="""")"
+                    $cfDyn.Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
+                    $cfDyn.Style.Fill.BackgroundColor.Color = [System.Drawing.Color]::FromArgb(255, 255, 0)
+                    $dynYellowCount++
+                }
+            }
+            if ($dynYellowCount -gt 0) {
+                $dynYellowMsg = "  [INFO] Applied dynamic yellow CF to $dynYellowCount mandatory column(s): turns yellow when _operation_ is set and cell is still empty"
+                Write-Host $dynYellowMsg -ForegroundColor Cyan
+                $dynYellowMsg | Out-File -FilePath $logFile -Append
+            }
+        }
+
+        # Apply data validation to _operation_ column
+        # Rows with "Script already applied" get all 3 options; others only get "Associate"
+        if ($columnMap.ContainsKey("_operation_")) {
+            $operationColNum  = $columnMap["_operation_"]
+            $applyResultColNum = if ($columnMap.ContainsKey("_apply-result_")) { $columnMap["_apply-result_"] } else { 0 }
+
+            $validationMsg = "  [INFO] Adding data validation to _operation_ column (context-aware dropdown)..."
             Write-Host $validationMsg -ForegroundColor Cyan
             $validationMsg | Out-File -FilePath $logFile -Append
-            
-            # Apply data validation to all data rows (skip header row)
+
+            $fullDropdownCount   = 0
+            $noAssociateCount   = 0
+            $simpleDropdownCount = 0
+
             for ($row = 2; $row -le $lastRow; $row++) {
                 $cell = $worksheet.Cells[$row, $operationColNum]
-                
-                # Create data validation for the cell
+                $applyResultValue = if ($applyResultColNum -gt 0) { [string]$worksheet.Cells[$row, $applyResultColNum].Value } else { "" }
+
                 $validation = $cell.DataValidation.AddListDataValidation()
                 $validation.ShowErrorMessage = $true
-                $validation.ErrorTitle = "Invalid Operation"
-                $validation.Error = "Please select a valid operation: Associate, DeleteAssociation, or UpdateParameters"
                 $validation.AllowBlank = $true
-                
-                # Add the three allowed values
-                $validation.Formula.Values.Add("Associate") | Out-Null
-                $validation.Formula.Values.Add("DeleteAssociation") | Out-Null
-                $validation.Formula.Values.Add("UpdateParameters") | Out-Null
+                $validation.ErrorTitle = "Invalid Operation"
+
+                if ($applyResultValue -eq "OK" -or $applyResultValue -eq "Script already applied") {
+                    # Script is associated: Associate makes no sense
+                    $validation.Error = "Script already associated: use DeleteAssociation or UpdateParameters"
+                    $validation.Formula.Values.Add("DeleteAssociation") | Out-Null
+                    $validation.Formula.Values.Add("UpdateParameters") | Out-Null
+                    $noAssociateCount++
+                } elseif (-not [string]::IsNullOrWhiteSpace($applyResultValue)) {
+                    # Skipped / Error: all options available
+                    $validation.Error = "Please select: Associate, DeleteAssociation, or UpdateParameters"
+                    $validation.Formula.Values.Add("Associate") | Out-Null
+                    $validation.Formula.Values.Add("DeleteAssociation") | Out-Null
+                    $validation.Formula.Values.Add("UpdateParameters") | Out-Null
+                    $fullDropdownCount++
+                } else {
+                    # No prior status: script not associated yet
+                    $validation.Error = "Script not yet associated: only Associate is available"
+                    $validation.Formula.Values.Add("Associate") | Out-Null
+                    $simpleDropdownCount++
+                }
             }
-            
-            $validationDoneMsg = "  [OK] Added data validation with dropdown list to $($lastRow - 1) cells in _operation_ column"
+
+            $validationDoneMsg = "  [OK] _operation_ dropdown: $simpleDropdownCount row(s) Associate-only, $fullDropdownCount row(s) full list, $noAssociateCount row(s) Delete/Update-only (OK)"
             Write-Host $validationDoneMsg -ForegroundColor Green
             $validationDoneMsg | Out-File -FilePath $logFile -Append
         }
@@ -2458,13 +2557,38 @@ AVAILABLE CUSTOM DRIVERS/SCRIPTS
             }
         }
 
+        # Re-lock editable cells for rows where collector or device is OFFLINE — scripts cannot be applied when offline
+        if ($columnMap.ContainsKey("_collector-device-status_")) {
+            $offlineStatusCol = $columnMap["_collector-device-status_"]
+            $offlineLockedCount = 0
+            for ($row = 2; $row -le $lastRow; $row++) {
+                $statusVal = [string]$worksheet.Cells[$row, $offlineStatusCol].Value
+                if ($statusVal -match "OFFLINE|DOWN") {
+                    foreach ($editCol in $editableColumns) {
+                        if ($columnMap.ContainsKey($editCol)) {
+                            $offlineCell = $worksheet.Cells[$row, $columnMap[$editCol]]
+                            $offlineCell.Style.Locked = $true
+                            $offlineCell.Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
+                            $offlineCell.Style.Fill.BackgroundColor.SetColor($readOnlyBgColor)
+                        }
+                    }
+                    $offlineLockedCount++
+                }
+            }
+            if ($offlineLockedCount -gt 0) {
+                $offlineLockMsg = "  [INFO] Locked editable cells for $offlineLockedCount OFFLINE row(s) (collector or device offline)"
+                Write-Host $offlineLockMsg -ForegroundColor Cyan
+                $offlineLockMsg | Out-File -FilePath $logFile -Append
+            }
+        }
+
         $worksheet.Protection.IsProtected = $true
         $worksheet.Protection.AllowSelectLockedCells = $true
         $worksheet.Protection.AllowSelectUnlockedCells = $true
         $worksheet.Protection.AllowAutoFilter = $true
         $worksheet.Protection.AllowFormatColumns = $true
 
-        $protectMsg = "  [INFO] Sheet protected: only _operation_, credentials, parameters and sample_period columns are editable"
+        $protectMsg = "  [INFO] Sheet protected: only _operation_, credentials, parameters and sample_period columns are editable (OFFLINE rows fully locked)"
         Write-Host $protectMsg -ForegroundColor Cyan
         $protectMsg | Out-File -FilePath $logFile -Append
 
